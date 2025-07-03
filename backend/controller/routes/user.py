@@ -1,5 +1,6 @@
 from flask_restful import Resource, reqparse
-from controller.model import User
+from flask import jsonify
+from controller.models.user_model import User
 
 # --- Optional: parser to fetch by email or id ---
 profile_parser = reqparse.RequestParser()
@@ -23,8 +24,9 @@ class UserProfile(Resource):
             return {'message': 'User not found'}, 404
 
         return {
-            'id': user.id,
-            'username': user.username,
-            'email': user.email,
-            'created_at': user.created_at.isoformat()
-        }, 200
+            
+                'id': user.id,
+                'name': user.name,
+                'email': user.email,
+                'created_at': user.created_at.isoformat()
+            }, 200

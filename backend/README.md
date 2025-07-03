@@ -4,8 +4,8 @@
 
 1. Create `.env` file using `.env.example`
 2. Activate virtual environment
-3. Install dependencies: `pip install -r requirements.txt`
-4. Run server: `python app.py`
+3. Install dependencies: `pip install -r req.txt`
+4. Run server: `python app.py` or `flask run --host=0.0.0.0 --port=8000`
 
 ## File Structure:
 
@@ -40,4 +40,5 @@
 
 Will update it later.
 # okay
-230408
+240125
+240516
