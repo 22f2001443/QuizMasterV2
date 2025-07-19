@@ -26,15 +26,21 @@ class Register(Resource):
     def get(self):
         # Fetch all available semesters
         semesters = Semester.query.order_by(Semester.id).all()
-        semester_list = [{"id": sem.id, "name": sem.name.value} for sem in semesters]
+        semester_options = [{"label": sem.name.value, "value": sem.id} for sem in semesters]
 
         # Optional DOB constraint range
         dob_min = "1990-01-01"
         dob_max = "2010-12-31"
 
         return jsonify({
-            "semesters": semester_list,
-            "dob_format": "YYYY-MM-DD",
+            "type": "register",
+            "fields": [
+                { "name": "name", "label": "Name", "type": "text", "required": True },
+                { "name": "email", "label": "Email", "type": "email", "required": True },
+                { "name": "password", "label": "Password", "type": "password", "required": True },
+                { "name": "dob", "label": "Date of Birth", "type": "date", "required": False },
+                { "name": "semester_id", "label": "Semester", "type": "select", "required": True, "options": semester_options }
+            ],
             "dob_min": dob_min,
             "dob_max": dob_max
         })
@@ -89,7 +95,7 @@ class Register(Resource):
             return result, 404
 
         # Create new user
-        new_user = User(name=name, email=email, password=hashed_password, roles=[user_role])
+        new_user = User(name=name, email=email, password=hashed_password, roles=[user_role],semester_id=semester_id, dob=dob)
         try:
             db.session.add(new_user)
             db.session.commit()
@@ -99,7 +105,7 @@ class Register(Resource):
             return result, 500
 
         # Return success message
-        result = {'message': 'User registered successfully', 'user': {'id': new_user.id, 'name': new_user.name, 'email': new_user.email}}
+        result = {'message': 'User registered successfully', 'user': {'id': new_user.id, 'name': new_user.name, 'email': new_user.email, 'semester': new_user.semester.name.value}}
         return result, 200
 
 # --- Resource: Login --- #working
@@ -143,9 +149,20 @@ class Login(Resource):
                 'id': user.id,
                 'name': user.name,
                 'email': user.email,
+                'roles': [role.name for role in user.roles]
+
             }
         }
         return result, 200
+    
+    def get(self):
+        return jsonify({
+            "type": "login",
+            "fields": [
+                {"name": "email", "label": "Email", "type": "email", "required": True},
+                {"name": "password", "label": "Password", "type": "password", "required": True}
+            ]
+        })
 
 # --- Resource: Logout --- #working
 class Logout(Resource):
@@ -153,7 +170,10 @@ class Logout(Resource):
     def post(self):
         security_utils.logout_user()
         result = {'message': 'Logout successful'}
-        return make_response(jsonify(result), 200)
+        response = make_response(jsonify(result), 200)
+        # Clear the session cookie
+        response.delete_cookie('session')
+        return response
     
 # # --- Resource: Reset --- #working
 # class ResetPassword(Resource):

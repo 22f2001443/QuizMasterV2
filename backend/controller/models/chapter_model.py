@@ -6,7 +6,8 @@ class Chapter(BaseModel):
 
     name = db.Column(db.String(200), nullable=False)
     subject_id = db.Column(db.Integer, db.ForeignKey('subjects.id', ondelete='CASCADE'), nullable=False)
-
+    #description = db.Column(db.Text, nullable=True)
+    
     # Relationship back to Subject
     subject = db.relationship('Subject', back_populates='chapters')
 

@@ -11,10 +11,10 @@ from .quiz_model import Quiz
 from .question_model import Question
 from .score_model import Score
 
-from .enums import SemesterEnum
+from .enums import SemesterEnum, QuestionTypeEnum
 
 __all__ = [
-    'db', 'SemesterEnum',
+    'db', 'SemesterEnum', 'QuestionTypeEnum',
     'User', 'Role', 'UserRole',
     'Semester', 'subject_semester',
     'Subject', 'Chapter', 'Quiz', 'Question', 'Score'

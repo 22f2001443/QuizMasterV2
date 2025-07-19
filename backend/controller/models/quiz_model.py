@@ -1,6 +1,8 @@
 from controller.models import db
 from controller.models.user_model import BaseModel
 
+from datetime import datetime
+
 class Quiz(BaseModel):
     __tablename__ = 'quizzes'
 
@@ -10,6 +12,9 @@ class Quiz(BaseModel):
     time_limit = db.Column(db.Integer, nullable=True)  # Time limit in seconds
     is_active = db.Column(db.Boolean, default=True, nullable=False)
 
+    start_time = db.Column(db.DateTime, nullable=True)
+    expire_time = db.Column(db.DateTime, nullable=True)
+    total_marks = db.Column(db.Integer, default=0, nullable=False)
     # Relationship back to Chapter
     chapter = db.relationship('Chapter', back_populates='quizzes')
 

@@ -26,3 +26,4 @@ class Semester(db.Model):
 
     def __repr__(self):
         return f"<Semester {self.name}>"
+    

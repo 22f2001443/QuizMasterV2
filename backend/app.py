@@ -70,7 +70,7 @@ def CreateDatabase(app, db):
         user_datastore.create_user(
           name="Admin",
           email="admin@example.com",
-          password=security_utils.hash_password("admin"),  
+          password=generate_password_hash("admin"),  
           roles=["admin"]
         )
 
@@ -80,9 +80,9 @@ def CreateDatabase(app, db):
       # --- Register Routes ---
       register_routes(api)
 
+      # --- Create User Roles Table ---
       db.session.commit()
-
-
+      
 # --- Create Database and Tables ---
 CreateDatabase(app, db)
 
