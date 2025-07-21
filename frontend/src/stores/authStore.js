@@ -7,6 +7,7 @@ export const useAuthStore = defineStore('auth', {
     roles: [],
     name: null,
     email: null,
+    id: null
   }),
   getters: {
     isAdmin: (state) => state.roles.includes('admin'),
@@ -14,17 +15,19 @@ export const useAuthStore = defineStore('auth', {
     isLoggedIn: (state) => !!state.token,
   },
   actions: {
-    setAuthData({ token, roles, name, email }) {
+    setAuthData({ token, roles, name, email,id }) {
       this.token = token
       this.roles = roles
       this.name = name
       this.email = email
+      this.id = id
     },
     logout() {
       this.token = null
       this.roles = []
       this.name = null
       this.email = null
+      this.id = null
     },
   },
   persist: true // ✅ Auto-persist all state

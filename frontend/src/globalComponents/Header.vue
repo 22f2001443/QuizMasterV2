@@ -79,8 +79,10 @@
         </template>
 
         <template v-else-if="isLoggedIn && !isAdmin">
-          <router-link to="/profile"
-            class="btn btn-link btn-sm text-decoration-none text-dark px-2">Profile</router-link>
+          <router-link v-if="route.path !== '/home'" to="/home"
+            class="btn btn-link btn-sm text-decoration-none text-dark px-2"><i class="bi bi-house-door" style="font-size: 1rem;"></i> Home</router-link>
+          <router-link v-if="route.path !== '/profile'" to="/profile"
+            class="btn btn-link btn-sm text-decoration-none text-dark px-2"><i class="bi bi-person-circle" style="font-size: 1rem;"></i> Profile</router-link>
           <button class="btn btn-outline-secondary btn-sm px-3" @click="logout">Logout</button>
         </template>
 

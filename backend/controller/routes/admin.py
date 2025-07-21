@@ -157,7 +157,7 @@ class AdminSubjectManagement(Resource):
                 "code": subject.code,
                 "department": subject.department,
                 "faculty": subject.faculty,
-                "semesters": [sem.id for sem in subject.semesters],
+                "semesters": [sem.id for sem in subject.semesters], #bug it is
                 "chapters_count": len(subject.chapters) if subject.chapters else 0
             } for subject in subjects
         ]

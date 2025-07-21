@@ -1,77 +1,111 @@
 <template>
-  <div
-    class="relative flex size-full min-h-screen flex-col bg-neutral-50 group/design-root overflow-x-hidden"
-    style='font-family: "Be Vietnam Pro", "Noto Sans", sans-serif;'
-  >
-    <div class="layout-container flex h-full grow flex-col">
-      <div class="px-40 flex flex-1 justify-center py-5">
-        <div class="layout-content-container flex flex-col max-w-[960px] flex-1">
-          <div class="flex p-4 @container">
-            <div class="flex w-full flex-col gap-4 items-center">
-              <div class="flex gap-4 flex-col items-center">
-                <!-- 👤 Replaced avatar with Bootstrap person-circle -->
-                <div class="text-dark">
-                  <i class="bi bi-person-circle" style="font-size: 5rem;"></i>
-                </div>
-                <div class="flex flex-col items-center justify-center">
-                  <p class="text-[#141414] text-[22px] font-bold leading-tight tracking-[-0.015em] text-center">
-                    Sophia Bennett
-                  </p>
-                  <p class="text-neutral-500 text-base font-normal leading-normal text-center">
-                    Enrolled in Data Science MasterTrack
-                  </p>
-                  <p class="text-neutral-500 text-base font-normal leading-normal text-center">
-                    Joined in 2021
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
+  <div class="container py-4" style="font-family: 'Be Vietnam Pro', 'Noto Sans', sans-serif;">
+    <div class="d-flex flex-column align-items-center">
+      <i class="bi bi-person-circle text-dark" style="font-size: 6rem;"></i>
+      <div class="text-center mt-2">
+        <h5 class="fw-semibold mb-1 fs-5">{{ user.name }}</h5>
+        <p class="text-muted mb-0 small">{{ user.email }}</p>
+        <!-- <p class="text-muted mb-0 small">Enrolled in {{user.semester}}</p> -->
+        <p class="text-muted small">Joined in {{ user.joinedDate.year }}</p>
+      </div>
+    </div>
 
-          <!-- Tabs (Removed Activity tab) -->
-          <div class="pb-3">
-            <div class="flex border-b border-[#dbdbdb] px-4 gap-8">
-              <a
-                class="flex flex-col items-center justify-center border-b-[3px] border-b-black text-[#141414] pb-[13px] pt-4"
-                href="#"
-              >
-                <p class="text-[#141414] text-sm font-bold leading-normal tracking-[0.015em]">Overview</p>
-              </a>
-              <a
-                class="flex flex-col items-center justify-center border-b-[3px] border-b-transparent text-neutral-500 pb-[13px] pt-4"
-                href="#"
-              >
-                <p class="text-neutral-500 text-sm font-bold leading-normal tracking-[0.015em]">Progress</p>
-              </a>
-            </div>
-          </div>
+    <!-- Tabs -->
+    <ul class="nav nav-tabs mt-3 px-2 small">
+      <li class="nav-item">
+        <a class="nav-link fw-semibold fs-8" :style="{ color: activeTab === 'overview' ? '#000000' : '#6c757d' }"
+          :class="{ active: activeTab === 'overview' }" @click="activeTab = 'overview'">Overview</a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link fw-semibold fs-8" :style="{ color: activeTab === 'progress' ? '#000000' : '#6c757d' }"
+          :class="{ active: activeTab === 'progress' }" @click="activeTab = 'progress'">Progress</a>
+      </li>
+    </ul>
 
-          <!-- Performance Summary -->
-          <h2 class="text-[#141414] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">
-            Performance Summary
-          </h2>
-          <div class="flex flex-wrap gap-4 p-4">
-            <div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-[#dbdbdb]">
-              <p class="text-[#141414] text-base font-medium leading-normal">Overall Score</p>
-              <p class="text-[#141414] tracking-light text-2xl font-bold leading-tight">85%</p>
-            </div>
-            <div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-[#dbdbdb]">
-              <p class="text-[#141414] text-base font-medium leading-normal">Courses Completed</p>
-              <p class="text-[#141414] tracking-light text-2xl font-bold leading-tight">5</p>
-            </div>
-            <div class="flex min-w-[158px] flex-1 flex-col gap-2 rounded-xl p-6 border border-[#dbdbdb]">
-              <p class="text-[#141414] text-base font-medium leading-normal">Practice Tests Taken</p>
-              <p class="text-[#141414] tracking-light text-2xl font-bold leading-tight">20</p>
+    <!-- Overview Content -->
+    <div v-if="activeTab === 'overview'" class="mt-3">
+      <h6 class="fw-semibold mt-4 px-2 fs-6">Performance Summary</h6>
+      <div class="row row-cols-1 row-cols-md-3 g-4 mt-2 px-2">
+        <div class="col" v-for="(item, idx) in stats" :key="idx">
+          <div class="card h-100 py-3 px-3" style="border: 1px solid rgba(0, 0, 0, 0.1);">
+            <div class="card-body text-start p-0">
+              <p class="fw-medium small mb-1">{{ item.label }}</p>
+              <h5 class="fw-bold fs-5 mb-0">{{ item.value }}</h5>
             </div>
           </div>
         </div>
+      </div>
+      <div>
+        <h6 class="fw-semibold mt-4 px-2 fs-6">Other Information</h6>
+        <div class="ps-4">
+        <!-- <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">Email: {{ user.email }}</p> -->
+        <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">Semester: {{ user.semester }}</p>
+        <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">DOB: {{ user.dob }}</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Content -->
+    <div v-if="activeTab === 'progress'" class="mt-3">
+      <h6 class="fw-semibold mt-4 px-2 fs-6">Progress Overview</h6>
+      <div class="card p-3" style="border: 1px solid rgba(0, 0, 0, 0.1);">
+        <p class="text-muted small">Progress chart will be displayed here.</p>
       </div>
     </div>
   </div>
 </template>
 
 <script setup>
-// No logic needed for static layout right now
+import { ref, onMounted } from 'vue'
+import { axiosPrivate } from '@/api/axios'
+import { useAuthStore } from '@/stores/authStore'
+
+const activeTab = ref('overview')
+const authStore = useAuthStore()
+const user = ref({
+  name: '',
+  email: '',
+  semester: '',
+  joinedDate: {
+    year: null,
+    month: null,
+    day: null
+  },
+  dob: '',
+  overallScore: 0,
+  quizCount: 0,
+  subjectCount: 0
+})
+
+const stats = ref([])
+
+const fetchUserProfile = async () => {
+  try {
+    const res = await axiosPrivate.get(`/user/profile/${authStore.id}`)
+    const data = res.data
+
+    user.value = {
+      name: data.name || 'Unknown User',
+      email: data.email || 'No Email Provided',
+      semester: data.semester || 'Unknown Semester',
+      joinedDate: data.joinedDate || { year: '-', month: '-', day: '-' },
+      overallScore: data.overallScore || 0,
+      quizCount: data.quizCount || 0,
+      subjectCount: data.subject_count || 0,
+      dob: data.dob || 'Unknown DOB'
+    }
+
+    stats.value = [
+      { label: 'Overall Score', value: user.value.overallScore },
+      { label: 'Subjects Enrolled', value: user.value.subjectCount },
+      { label: 'Quiz Taken', value: user.value.quizCount }
+    ]
+  } catch (err) {
+    console.error('Failed to load profile:', err)
+  }
+}
+
+onMounted(fetchUserProfile)
 </script>
 
 <style scoped>
