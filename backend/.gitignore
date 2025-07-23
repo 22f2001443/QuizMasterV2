@@ -6,6 +6,10 @@ __pycache__/
 .env
 venv/
 
+# SQL files and backups
+*.sql
+/data/backup
+
 # SQLite database
 *.sqlite
 *.sqlite3

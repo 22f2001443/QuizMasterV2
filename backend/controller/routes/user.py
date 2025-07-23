@@ -159,6 +159,7 @@ class getQuestion(Resource):
             'quiz_name': quiz.title,
             'time': quiz.time_limit,
             'marks': quiz.total_marks,
+            'total_questions': len(questions),
             'questions': [
                 {
                     'id': question.id,
@@ -172,3 +173,14 @@ class getQuestion(Resource):
         }
 
         return make_response(jsonify(response), 200)
+    
+    @auth_token_required
+    def post(self, score_entry_id):
+        data = request.get_json()
+        score_entry = Score.query.get(score_entry_id)
+        user_id = data.get('user_id')
+        if not score_entry or score_entry.user_id != user_id:
+            return make_response(jsonify({'message': 'Not authorized'}), 404)
+        
+
+        return

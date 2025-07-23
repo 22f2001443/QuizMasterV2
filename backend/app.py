@@ -48,10 +48,18 @@ user_datastore.db = db
 
 security.init_app(app, user_datastore)
 
+def enable_foreign_keys():
+    @event.listens_for(db.engine, "connect")
+    def set_sqlite_pragma(dbapi_connection, connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON;")
+        cursor.close()
+
 # --- Database Initialization ---
 def CreateDatabase(app, db):
     with app.app_context():
       db.init_app(app)
+      enable_foreign_keys()
       db.create_all()
 
       # --- Create default roles if they don't exist ---
