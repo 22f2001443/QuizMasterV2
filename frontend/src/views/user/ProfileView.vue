@@ -96,7 +96,7 @@ const fetchUserProfile = async () => {
     }
 
     stats.value = [
-      { label: 'Overall Score', value: user.value.overallScore },
+      { label: 'Overall Score (%)', value: user.value.overallScore },
       { label: 'Subjects Enrolled', value: user.value.subjectCount },
       { label: 'Quiz Taken', value: user.value.quizCount }
     ]

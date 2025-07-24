@@ -9,6 +9,7 @@ venv/
 # SQL files and backups
 *.sql
 /data/backup
+/data
 
 # SQLite database
 *.sqlite

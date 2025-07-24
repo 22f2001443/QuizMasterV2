@@ -1,5 +1,5 @@
 from controller.routes.auth import Register, Login, Logout #, ResetPassword
-from controller.routes.user import UserProfile, UserDashboard, QuizStart, getQuestion
+from controller.routes.user import UserProfile, UserDashboard, QuizStart, getQuestion, QuizResults
 from controller.routes.admin import AdminMetrics, AdminUserManagement, AdminSubjectManagement, AdminChapterManagement, AdminQuizManagement, AdminQuestionManagement, GetStudentDistribution, GetQuizPerformance
 
 
@@ -26,3 +26,6 @@ def register_routes(api):
     api.add_resource(UserDashboard, '/api/user/dashboard/<user_id>')
     api.add_resource(QuizStart, '/api/user/quiz/start/<quiz_id>')
     api.add_resource(getQuestion, '/api/user/quiz/questions/<score_entry_id>')
+    api.add_resource(QuizResults,
+                 '/api/user/quiz/results/',                   # Without parameter
+                 '/api/user/quiz/results/<string:quiz_session_id>')  # With parameter

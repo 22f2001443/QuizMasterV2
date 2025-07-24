@@ -1,6 +1,13 @@
 <template>
   <div class="container py-5" style="font-family: 'Be Vietnam Pro', 'Noto Sans', sans-serif;">
     <div class="mb-4">
+
+      <div class="py-3">
+        <button class="btn btn-outline-dark btn-sm w-fit" @click="goBack">
+          <i class="bi bi-arrow-left"></i> Back to Quizzes
+        </button>
+      </div>
+
       <h2 class="fw-bold display-6">Quiz: {{ quiz_info.title }}</h2>
       <p class="text-muted small">
         {{ quiz_info.description }}
@@ -64,6 +71,10 @@ onMounted(async () => {
     console.error("Error fetching quiz info:", error);
   }
 });
+
+const goBack = () => {
+  router.push({ name: 'UserDashboard' });
+};
 </script>
 
 <style scoped>

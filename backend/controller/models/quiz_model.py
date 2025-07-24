@@ -10,7 +10,7 @@ class Quiz(BaseModel):
     chapter_id = db.Column(db.Integer, db.ForeignKey('chapters.id', ondelete='CASCADE'), nullable=False)
     description = db.Column(db.String(500), nullable=True)
     time_limit = db.Column(db.Integer, nullable=True)  # Time limit in seconds
-    is_active = db.Column(db.Boolean, default=True, nullable=False)
+    # is_active = db.Column(db.Boolean, default=True, nullable=False)
 
     start_time = db.Column(db.DateTime, nullable=True)
     expire_time = db.Column(db.DateTime, nullable=True)
@@ -25,6 +25,11 @@ class Quiz(BaseModel):
         cascade='all, delete-orphan',
         passive_deletes=True
     )
+    @property
+    def is_active(self):
+        now = datetime.utcnow()
+        return (self.start_time is None or self.start_time <= now) and \
+               (self.expire_time is None or self.expire_time >= now)
 
     def update_total_marks(self):
         self.total_marks = sum(q.marks for q in self.questions)

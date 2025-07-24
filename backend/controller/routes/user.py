@@ -2,6 +2,7 @@ from flask_restful import Resource, reqparse
 from flask import jsonify, make_response, request
 from flask_security import auth_token_required
 from datetime import datetime
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from controller.models import db, User, Subject, Quiz, Score, Semester, Chapter, Question, SemesterEnum, QuestionTypeEnum
 
@@ -30,7 +31,7 @@ class UserProfile(Resource):
                 'month': user.created_at.month,
                 'day': user.created_at.day
             },
-            'overallScore': Score.query.filter_by(user_id=user.id).with_entities(db.func.sum(Score.percentage)).scalar() or 0,
+            'overallScore': round(Score.query.filter_by(user_id=user.id).with_entities(db.func.avg(Score.percentage)).scalar() or 0, 2),
             'quizCount': Score.query.filter_by(user_id=user.id).distinct(Score.quiz_id).count(),
             #'subjects': [{'id': subject.id, 'name': subject.name} for subject in user.subjects],
             'subject_count': len(user.semester.subjects) if user.semester else 0,
@@ -109,6 +110,7 @@ class QuizStart(Resource):
                 user_id=user.id,
                 quiz_id=quiz.id,
                 percentage=0,
+                is_submitted=False,
                 # started_at=datetime.utcnow(),
                 # is_active=True  # Optional: helps in controlling ongoing/incomplete quizzes
                 )
@@ -116,6 +118,17 @@ class QuizStart(Resource):
             db.session.commit()
 
             return make_response(jsonify({'session_id': session.id}), 200)
+        except IntegrityError as e:
+            db.session.rollback()
+            if "UNIQUE constraint failed: scores.user_id, scores.quiz_id" in str(e.orig):
+                return make_response(jsonify({
+                    'message': 'You have already submitted or started this quiz.'
+                    }), 409)
+            else:
+                return make_response(jsonify({
+                    'message': 'Database integrity error',
+                    'error': str(e)
+                    }), 400)
         except Exception as error:
             db.session.rollback()
             return make_response(jsonify({f'message': f'Error starting quiz session: {error}'}), 500)
@@ -145,8 +158,11 @@ class getQuestion(Resource):
     @auth_token_required
     def get(self, score_entry_id):
         score_entry = Score.query.get(score_entry_id)
+        
         if not score_entry:
             return make_response(jsonify({'message': 'Score entry not found'}), 404)
+        if score_entry.is_submitted :
+            return make_response(jsonify({'message': 'You have already submitted this quiz'}), 400)
         quiz = Quiz.query.get(score_entry.quiz_id)
         if not quiz:
             return make_response(jsonify({'message': 'Quiz not found'}), 404)
@@ -177,10 +193,82 @@ class getQuestion(Resource):
     @auth_token_required
     def post(self, score_entry_id):
         data = request.get_json()
-        score_entry = Score.query.get(score_entry_id)
         user_id = data.get('user_id')
-        if not score_entry or score_entry.user_id != user_id:
-            return make_response(jsonify({'message': 'Not authorized'}), 404)
-        
+        score_entry = Score.query.get(score_entry_id)
+        score_obtained = 0
 
-        return
+        if not score_entry:
+            return make_response(jsonify({'message': 'Score entry not found'}), 404)
+        elif score_entry.is_submitted:
+            return make_response(jsonify({'message': 'You have already submitted this quiz'}), 400)
+        elif score_entry.user_id != user_id:
+            return make_response(jsonify({'message': 'Not authorized'}), 403)
+        
+        quiz = Quiz.query.get(score_entry.quiz_id)
+        if not quiz:
+            return make_response(jsonify({'message': 'Quiz not found'}), 404)
+        
+        submitted_answers = {a['question_id']: a['answer'] for a in data.get('answers', [])}
+        questions = Question.query.filter_by(quiz_id=quiz.id).all()
+        for question in questions:
+            submitted_answer = submitted_answers.get(question.id)
+            if submitted_answer is not None:
+                if str(submitted_answer).strip().lower() == str(question.correct_answer).strip().lower():
+                    score_obtained += question.marks or 0
+
+        try:
+            score_entry.percentage = round((score_obtained / quiz.total_marks) * 100, 2)
+            score_entry.is_submitted = True
+            db.session.commit()
+
+            return make_response(jsonify({
+                'message': 'Quiz submitted successfully',
+                # 'score': score_obtained,
+                'marks': score_entry.percentage,
+                'question_count': len(questions),
+                }), 200)
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return make_response(jsonify({
+                'message': 'Failed to submit quiz',
+                'error': str(e)
+            }), 500)
+
+
+class QuizResults(Resource):
+    @auth_token_required
+    def get(self, quiz_session_id=None):
+        if quiz_session_id:
+            score_entry = Score.query.filter_by(id=quiz_session_id).first()
+            questions = Question.query.filter_by(quiz_id=score_entry.quiz_id).all()
+            if not score_entry:
+                return make_response(jsonify({'message': 'Score entry not found'}), 404)
+            return make_response(jsonify({
+                'quiz_session_id': score_entry.id,
+                'user_id': score_entry.user_id,
+                'quiz_id': score_entry.quiz_id,
+                'percentage': score_entry.percentage,
+                'is_submitted': score_entry.is_submitted,
+                'created_at': score_entry.created_at.isoformat(),
+                'question_count': len(questions) if score_entry.quiz_id else 0,
+                'updates_on': score_entry.updated_at.isoformat() if score_entry.updated_at else None
+            }), 200)
+        
+        # If no quiz_session_id is provided, return all results for the user
+        user_id = request.args.get('user_id')
+        if not user_id:
+            return make_response(jsonify({'message': 'User ID is required'}), 400)
+
+        scores = Score.query.filter_by(user_id=user_id).all()
+        questions = Question.query.filter_by(quiz_id=scores.quiz_id).all()
+        results = [{
+            'quiz_session_id': score.id,
+            'quiz_id': score.quiz_id,
+            'percentage': score.percentage,
+            'is_submitted': score.is_submitted,
+            'created_at': score.created_at.isoformat(),
+            'question_count': len(questions) if score.quiz_id else 0,
+        } for score in scores]
+
+        return make_response(jsonify(results), 200)

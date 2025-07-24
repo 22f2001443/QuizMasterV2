@@ -42,7 +42,7 @@ const userRoutes = [
     }
   },
   {
-    path: '/quiz/:quizSessionId/results',
+    path: '/quiz/result/:quizSessionId',
     name: 'QuizResults',
     component: QuizResultsView,
     meta: {

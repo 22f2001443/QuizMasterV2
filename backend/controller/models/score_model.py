@@ -10,6 +10,7 @@ class Score(BaseModel):
 
     percentage = db.Column(db.Float, nullable=False)
     submission_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    is_submitted = db.Column(db.Boolean, default=False, nullable=False)
 
     # Relationships
     user = db.relationship("User", backref=db.backref("scores", cascade="all, delete-orphan", passive_deletes=True))

@@ -41,8 +41,7 @@
       <div v-if="question.type === 'MCQ'" class="mb-3">
         <div v-for="(option, i) in question.options" :key="i" class="form-check">
           <input class="form-check-input" type="radio" :name="'question-' + index" :id="'option-' + index + '-' + i"
-            :value="option" 
-            v-model="answers[index]" />
+            :value="option" v-model="answers[index]" />
           <label class="form-check-label" :for="'option-' + index + '-' + i">
             {{ option }}
           </label>
@@ -50,7 +49,7 @@
       </div>
 
       <div v-else-if="question.type === 'NTA'">
-        <input type="text" class="form-control" placeholder="Enter your answer"  v-model="answers[index]" />
+        <input type="text" class="form-control" placeholder="Enter your answer" v-model="answers[index]" />
       </div>
     </div>
 
@@ -93,11 +92,17 @@ const submitQuiz = async () => {
       answer: answers.value[i] || null
     }))
   };
-  console.log('Submitting quiz with payload:', payload);
+  //console.log('Submitting quiz with payload:', payload);
+  let res;
   try {
-    await axios.post(`/user/quiz/questions/${quizSessionId}`, payload);
+    res = await axios.post(`/user/quiz/questions/${quizSessionId}`, payload);
     toast.success('Quiz submitted successfully!');
-    router.push({ name: 'ResultPage' });
+    router.push({
+      name: 'QuizResults',
+      // state: { resultData: res.data }
+      params: { quizSessionId: quizSessionId }
+    });
+
   } catch (error) {
     console.error('Error submitting quiz:', error);
     toast.error(`Failed to submit quiz. ${error.response?.data?.message || 'Please try again later.'}`);
@@ -155,7 +160,12 @@ onMounted(async () => {
     }
   } catch (error) {
     console.error('Error fetching quiz questions:', error);
-    toast.error('Failed to load quiz questions.');
+    if (error.response && error.response.status === 400) {
+      toast.error(error.response.data.message || 'Quiz already submitted or unavailable.');
+      await router.push({ name: 'UserDashboard' });
+    } else {
+      toast.error('Failed to load quiz questions.');
+    }
   }
 });
 
