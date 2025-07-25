@@ -103,6 +103,7 @@ const selectedQuiz = ref(null)
 const fetchQuizzes = async () => {
   try {
     const res = await axiosPrivate.get('/admin/quizzes')
+    
     quizzes.value = res.data
   } catch (err) {
     error.value = 'Failed to load quizzes.'

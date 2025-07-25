@@ -68,6 +68,9 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import { axiosPrivate } from '@/api/axios'
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
 
 const metrics = ref({
   users: 0,
@@ -90,6 +93,11 @@ const analyticsBg =
 onMounted(async () => {
   try {
     const res = await axiosPrivate.get('/admin/metrics')
+    if (res.status === 401) {
+      //console.error('Failed to fetch metrics:', res.statusText);
+      router.push({ name: 'Login' });
+      return;
+    }
     metrics.value = {
       users: res.data.total_users,
       subjects: res.data.total_subjects,

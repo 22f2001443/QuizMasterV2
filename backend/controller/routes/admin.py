@@ -512,7 +512,7 @@ class AdminQuizManagement(Resource):
                 time_limit=time_limit,
                 start_time=start_time,
                 expire_time=expire_time,
-                is_active=is_active,
+                # is_active=is_active,
                 total_marks=0  # Initial marks = 0
          )
 
@@ -715,6 +715,48 @@ class GetStudentDistribution(Resource):
             })
 
         return make_response(jsonify(distribution), 200)
+
+class GetSubjectAttempts(Resource):
+    @auth_token_required
+    @roles_required('admin')
+    def get(self):
+        # Fetch all subjects and their attempt counts
+        subjects = Subject.query.all()
+        attempts = []
+
+        for subject in subjects:
+            attempt_count = db.session.query(Score).\
+            join(Score.quiz).\
+            join(Quiz.chapter).\
+            join(Chapter.subject).\
+            filter(Subject.id == subject.id).\
+            count()
+            attempts.append({
+                "subject_name": subject.name,
+                "attempt_count": attempt_count
+            })
+
+        return make_response(jsonify(attempts), 200)
+        
+class GetLeaderboard(Resource):
+    @auth_token_required
+    @roles_required('admin')
+    def get(self):
+        # Fetch top 10 students based on their average scores
+        top_students = db.session.query(
+            User.id, User.name, Semester.name.label('semester_name'), db.func.avg(Score.percentage).label('average_score')
+        ).join(Score).join(Semester, User.semester_id == Semester.id).group_by(User.id, Semester.name).order_by(db.desc('average_score')).limit(5).all()
+
+        leaderboard = [
+            {
+                "id": student.id,
+                "name": student.name,
+                "semester": student.semester_name.value if student.semester_name else None,
+                "score": round(student.average_score, 2) if student.average_score is not None else 0
+            } for student in top_students
+        ]
+
+        return make_response(jsonify({"top_performers": leaderboard}), 200)
     
 class GetQuizPerformance(Resource):
     @auth_token_required

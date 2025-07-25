@@ -17,6 +17,8 @@ class UserProfile(Resource):
         
         user = User.query.get(user_id)
 
+        quizzes = user.scores if user else []
+
         if not user:
             return {'message': 'User not found'}, 404
 
@@ -35,7 +37,19 @@ class UserProfile(Resource):
             'quizCount': Score.query.filter_by(user_id=user.id).distinct(Score.quiz_id).count(),
             #'subjects': [{'id': subject.id, 'name': subject.name} for subject in user.subjects],
             'subject_count': len(user.semester.subjects) if user.semester else 0,
-            'dob': user.dob.strftime('%Y-%m-%d') if user.dob else 'Unknown DOB'
+            'dob': user.dob.strftime('%Y-%m-%d') if user.dob else 'Unknown DOB',
+            'quizzes': [
+                {
+                    'id': quiz.id,
+                    'name' : Quiz.query.get(quiz.quiz_id).title if quiz.quiz_id else None,
+                    'chapter': Quiz.query.get(quiz.quiz_id).chapter.name if quiz.quiz_id and Quiz.query.get(quiz.quiz_id).chapter else None,
+                    'subject': Quiz.query.get(quiz.quiz_id).chapter.subject.name if quiz.quiz_id and Quiz.query.get(quiz.quiz_id).chapter else None,
+                    'score': quiz.percentage,
+                    'date': quiz.updated_at.strftime('%Y-%m-%d %H:%M:%S') if quiz.updated_at else 'Unknown Date',
+                    'status': 'Submitted' if quiz.is_submitted else 'Incomplete',
+                }
+                for quiz in quizzes
+            ],
         }
         return make_response(jsonify(response), 200)
     
@@ -214,7 +228,10 @@ class getQuestion(Resource):
             submitted_answer = submitted_answers.get(question.id)
             if submitted_answer is not None:
                 if str(submitted_answer).strip().lower() == str(question.correct_answer).strip().lower():
-                    score_obtained += question.marks or 0
+                    score_obtained += question.marks
+                    score_entry.correct_count += 1
+                else:
+                    score_entry.incorrect_count += 1
 
         try:
             score_entry.percentage = round((score_obtained / quiz.total_marks) * 100, 2)
@@ -248,11 +265,15 @@ class QuizResults(Resource):
                 'quiz_session_id': score_entry.id,
                 'user_id': score_entry.user_id,
                 'quiz_id': score_entry.quiz_id,
+                'quiz_name': score_entry.quiz.title,
                 'percentage': score_entry.percentage,
                 'is_submitted': score_entry.is_submitted,
                 'created_at': score_entry.created_at.isoformat(),
                 'question_count': len(questions) if score_entry.quiz_id else 0,
-                'updates_on': score_entry.updated_at.isoformat() if score_entry.updated_at else None
+                'updates_on': score_entry.updated_at.isoformat() if score_entry.updated_at else None,
+                'correct_count': score_entry.correct_count,
+                'incorrect_count': score_entry.incorrect_count,
+                'unattended_count': len(questions) - (score_entry.correct_count + score_entry.incorrect_count),
             }), 200)
         
         # If no quiz_session_id is provided, return all results for the user

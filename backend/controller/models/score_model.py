@@ -12,6 +12,9 @@ class Score(BaseModel):
     submission_time = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
     is_submitted = db.Column(db.Boolean, default=False, nullable=False)
 
+    correct_count = db.Column(db.Integer, nullable=False, default=0)
+    incorrect_count = db.Column(db.Integer, nullable=False, default=0)
+
     # Relationships
     user = db.relationship("User", backref=db.backref("scores", cascade="all, delete-orphan", passive_deletes=True))
     quiz = db.relationship("Quiz", backref=db.backref("scores", cascade="all, delete-orphan", passive_deletes=True))

@@ -1,57 +1,66 @@
 <template>
   <div class="container mt-5">
-    <div class="card shadow-sm p-4">
-      <h2 class="card-title mb-3">Quiz Result</h2>
-      <p class="card-text mb-4 text-muted">{{ quiz_info.title }}</p>
+    <div class="d-flex flex-wrap justify-content-center gap-3 px-4 py-4">
+      <div class="card shadow-sm p-4 col-10 col-md-5">
+        <h2 class="card-title mb-3">Quiz Result</h2>
+        <p class="card-text mb-4 text-muted">{{ quiz_info.title }}</p>
 
-      <!-- <div class="row mb-2">
+        <!-- <div class="row mb-2">
         <div class="col-4 fw-semibold text-secondary">Quiz ID</div>
         <div class="col-8">{{ quiz_info.id }}</div>
       </div> -->
-      <div class="row mb-2">
-        <div class="col-4 fw-semibold text-secondary">Number of Questions</div>
-        <div class="col-8">{{ quiz_info.questions_count }}</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-4 fw-semibold text-secondary">Marks</div>
-        <div class="col-8">{{ quiz_info.marks }}%</div>
-      </div>
-      <div class="row mb-2">
-        <div class="col-4 fw-semibold text-secondary">Submitted on</div>
-        <div class="col-8">{{ new Date(quiz_info.updates_on).toLocaleString('en-GB', options) }}</div>
-      </div>
-      <!-- <div class="row mb-2">
+        <div class="row mb-2">
+          <div class="col-4 fw-semibold text-secondary">Number of Questions</div>
+          <div class="col-8">{{ quiz_info.questions_count }}</div>
+        </div>
+        <div class="row mb-2">
+          <div class="col-4 fw-semibold text-secondary">Marks</div>
+          <div class="col-8">{{ quiz_info.marks }}%</div>
+        </div>
+        <div class="row mb-2">
+          <div class="col-4 fw-semibold text-secondary">Submitted on</div>
+          <div class="col-8">{{ new Date(quiz_info.updates_on).toLocaleString('en-GB', options) }}</div>
+        </div>
+        <!-- <div class="row mb-2">
         <div class="col-4 fw-semibold text-secondary">Duration</div>
         <div class="col-8">{{ quiz_info.duration }}</div>
       </div> -->
-      <!-- <div class="row mb-2">
+        <!-- <div class="row mb-2">
         <div class="col-4 fw-semibold text-secondary">Chapter</div>
         <div class="col-8">{{ quiz_info.chapter_name }}</div>
       </div> -->
-      <!-- <div class="row mb-4">
+        <!-- <div class="row mb-4">
         <div class="col-4 fw-semibold text-secondary">Subject</div>
         <div class="col-8">{{ quiz_info.subject_name }}</div>
       </div> -->
 
 
-      <div class="text-end">
-        <button class="btn btn-dark btn-sm" @click="goHome">
-          <i class="bi bi-house me-1"></i> Go to Home
-        </button>
+        <div class="text-end">
+          <button class="btn btn-dark btn-sm" @click="goHome">
+            <i class="bi bi-house me-1"></i> Go to Home
+          </button>
+        </div>
+      </div>
+
+      <div class="card shadow-sm p-4 col-10 col-md-5">
+        <p class="fw-medium text-body">Chart Overview</p>
+        <canvas id="performanceChart" height="50" style="max-height: 180px;"></canvas>
+
+
       </div>
     </div>
   </div>
+
 </template>
 
 <script setup>
 import { ref, onMounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { axiosPrivate } from '@/api/axios';
+import Chart from 'chart.js/auto'; // <-- make sure this is imported
 
 const router = useRouter();
-const resultData = ref(null);
-const shouldRender = ref(false); // initially false
-
+const shouldRender = ref(false);
 const quiz_info = ref({
   title: '',
   marks: 0,
@@ -63,21 +72,56 @@ const goHome = () => {
 };
 
 onMounted(async () => {
-  await nextTick(); // wait for route state to be available
+  await nextTick(); // ensure DOM is rendered before accessing canvas
 
   const result_id = router.currentRoute.value.params.quizSessionId;
-  console.log('Current route state:', result_id);
-  if (result_id) {
-    const res = await axiosPrivate.get(`/user/quiz/results/${result_id}`);
-    quiz_info.value = {
-      title: res.data.title,
-      marks: res.data.percentage,
-      questions_count: res.data.question_count,
-      updates_on: res.data.updates_on,
-    };
-    shouldRender.value = true;
-  } else {
-    goHome(); // redirect if no resultData
+  if (!result_id) {
+    goHome();
+    return;
+  }
+
+  const res = await axiosPrivate.get(`/user/quiz/results/${result_id}`);
+  quiz_info.value = {
+    title: res.data.title,
+    marks: res.data.percentage,
+    questions_count: res.data.question_count,
+    updates_on: res.data.updates_on,
+  };
+
+  // After setting quiz_info, render the chart
+  await nextTick(); // wait again for canvas to appear
+
+  const canvas = document.getElementById('performanceChart');
+  if (canvas) {
+    const ctx = canvas.getContext('2d');
+    new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: ['Correct', 'Incorrect', 'Unattended'],
+        datasets: [{
+          label: 'Responses',
+          data: [res.data.correct_count, res.data.incorrect_count, res.data.unattended_count], // use dynamic values
+          backgroundColor: ['#4CAF50', '#F44336', '#FFC107'],
+          borderRadius: 8,
+          barThickness: 40,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1
+            }
+          }
+        }
+      }
+    });
   }
 });
 </script>

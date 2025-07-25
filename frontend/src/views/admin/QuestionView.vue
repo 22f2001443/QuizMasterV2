@@ -115,6 +115,7 @@ const handleCloseModal = () =>{
 const fetchQuestions = async () => {
   try {
     const res = await axiosPrivate.get(`/admin/questions/${quizId}`)
+    
     questions.value = res.data.questions
     quizTitle.value = res.data.quiz_title
     chapter_name.value = res.data.chapter_name

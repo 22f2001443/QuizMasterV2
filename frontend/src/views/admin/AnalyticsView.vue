@@ -19,11 +19,40 @@
       <h3 class="h4 fw-bold mb-3">Performance Metrics</h3>
       <div class="row">
         <div class="col-md-6 mb-3">
-          <div class="card p-4 h-100">
-            <h6>Average Score Over Time</h6>
-            <canvas ref="scoreChart" height="180"></canvas>
-          </div>
-        </div>
+  <div class="card p-4 h-100">
+    <div class="d-flex justify-content-between align-items-center mt-4 mb-2 px-2">
+        <h6 class="fw-semibold fs-6 mb-0">Top 5 Performers</h6>
+
+        <button class="btn btn-sm btn-outline-primary" title="Download Progress"
+          @click="handleDownloadCSV(authStore.id)">
+          <i class="bi bi-download"></i>
+        </button>
+      </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped mb-0">
+        <thead>
+          <tr>
+            <th></th>
+            <th>Name</th>
+            <th>Semester</th>
+            <th>Score (%)</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr v-if="leaderboard.length === 0">
+            <td colspan="4" class="text-center text-muted py-3">No leaderboard data available.</td>
+          </tr>
+          <tr v-for="(student, index) in leaderboard" :key="student.id">
+            <td>{{ index + 1 }}</td>
+            <td>{{ student.name }}</td>
+            <td>{{ student.semester }}</td>
+            <td>{{ student.score }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
         <div class="col-md-6 mb-3">
           <div class="card p-4 h-100">
             <h6>Quiz Completion Rates</h6>
@@ -54,11 +83,10 @@ Chart.register(...registerables)
 
 // Refs to canvas elements
 const semesterChart = ref(null)
-const scoreChart = ref(null)
 const completionChart = ref(null)
 const subjectChart = ref(null)
+const leaderboard = ref([])
 
-// 1️⃣ Real API for student distribution
 const loadSemesterChart = async () => {
   const res = await axios.get('/admin/analytics/student-distribution')
   const data = res.data
@@ -86,37 +114,11 @@ const loadSemesterChart = async () => {
     }
   })
 }
-
-// 2️⃣ Mock data for score chart
-const loadScoreChart = async () => {
-  const data = {
-    labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
-    values: [75, 80, 78, 85]
-  }
-
-  if (!scoreChart.value) return
-  new Chart(scoreChart.value, {
-    type: 'line',
-    data: {
-      labels: data.labels,
-      datasets: [{
-        label: 'Avg Score',
-        data: data.values,
-        borderColor: '#0d6efd',
-        backgroundColor: 'rgba(13,110,253,0.2)',
-        fill: true,
-        tension: 0.4
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
-      }
-    }
-  })
+const loadLeaderboard = async () => {
+  const res = await axios.get('/admin/analytics/leaderboard')
+  leaderboard.value = res.data.top_performers || []
+  console.log('Leaderboard Data:', leaderboard.value)
 }
-
 // 3️⃣ Mock data for completion chart
 const loadCompletionChart = async () => {
   const data = {
@@ -144,21 +146,23 @@ const loadCompletionChart = async () => {
   })
 }
 
-// 4️⃣ Mock data for subject chart
+
 const loadSubjectChart = async () => {
-  const data = {
-    labels: ["Math", "Physics", "Stats", "CS"],
-    counts: [45, 60, 30, 80]
-  }
+  const res = await axios.get('/admin/analytics/subject-attempts')
+  if (!res || !res.data) return
+  const data = res.data
+  const labels = data.map(item => item.subject_name)
+  const counts = data.map(item => item.attempt_count)
+  console.log('Subject Chart Data:', labels, counts)
 
   if (!subjectChart.value) return
   new Chart(subjectChart.value, {
     type: 'bar',
     data: {
-      labels: data.labels,
+      labels,
       datasets: [{
         label: 'Attempts',
-        data: data.counts,
+        data: counts,
         backgroundColor: '#ffc107'
       }]
     },
@@ -172,13 +176,13 @@ const loadSubjectChart = async () => {
   })
 }
 
-// 📦 Load all charts after DOM is ready
+// Load all charts on component mount
 onMounted(async () => {
   try {
     await nextTick()
     await loadSemesterChart()
-    await loadScoreChart()
     await loadCompletionChart()
+    await loadLeaderboard()
     await loadSubjectChart()
   } catch (error) {
     console.error('Error loading one or more charts:', error)

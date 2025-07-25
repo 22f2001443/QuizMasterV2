@@ -38,19 +38,61 @@
       <div>
         <h6 class="fw-semibold mt-4 px-2 fs-6">Other Information</h6>
         <div class="ps-4">
-        <!-- <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">Email: {{ user.email }}</p> -->
-        <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">Semester: {{ user.semester }}</p>
-        <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">DOB: {{ user.dob }}</p>
+          <!-- <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">Email: {{ user.email }}</p> -->
+          <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">Semester: {{ user.semester }}</p>
+          <p class="small mb-1" style="color: rgba(108, 117, 125, 1);">DOB: {{ user.dob }}</p>
         </div>
       </div>
     </div>
 
     <!-- Progress Content -->
     <div v-if="activeTab === 'progress'" class="mt-3">
-      <h6 class="fw-semibold mt-4 px-2 fs-6">Progress Overview</h6>
-      <div class="card p-3" style="border: 1px solid rgba(0, 0, 0, 0.1);">
-        <p class="text-muted small">Progress chart will be displayed here.</p>
+      <div class="d-flex justify-content-between align-items-center mt-4 px-2">
+        <h6 class="fw-semibold fs-6 mb-0">Progress Overview</h6>
+
+        <button class="btn btn-sm btn-outline-primary" title="Download Progress"
+          @click="handleDownloadCSV(authStore.id)">
+          <i class="bi bi-download"></i>
+        </button>
       </div>
+
+      <div class="container py-4">
+
+        <div class="table-responsive border rounded bg-light">
+          <table class="table table-bordered mb-0">
+            <thead class="table-light">
+              <tr>
+                <th scope="col">Quiz Name</th>
+                <th scope="col">Subject</th>
+                <th scope="col">Chapter</th>
+                <th scope="col">Date</th>
+                <th scope="col">Score</th>
+                <!-- <th scope="col">Time Taken</th> -->
+                <th scope="col">Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-if="quizzes.length === 0">
+                <td colspan="5" class="text-center text-muted py-3">No quiz data available.</td>
+              </tr>
+              <tr v-for="quiz in quizzes" :key="quiz.name">
+                <td>{{ quiz.name }}</td>
+                <td class="text-muted">{{ quiz.subject }}</td>
+                <td class="text-muted">{{ quiz.chapter }}</td>
+                <td class="text-muted">{{ quiz.date }}</td>
+                <td class="text-muted">{{ quiz.score }}%</td>
+                <!-- <td class="text-muted">{{ quiz.time }}</td> -->
+                <td>
+                  <button class="btn btn-sm btn-outline-dark w-100" @click="QuizResults(quiz.id)">{{ quiz.status
+                    }}</button>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <h2 class="text-[#141414] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Overall
+        Performance</h2>
     </div>
   </div>
 </template>
@@ -59,7 +101,9 @@
 import { ref, onMounted } from 'vue'
 import { axiosPrivate } from '@/api/axios'
 import { useAuthStore } from '@/stores/authStore'
+import { useRouter } from 'vue-router'
 
+const router = useRouter()
 const activeTab = ref('overview')
 const authStore = useAuthStore()
 const user = ref({
@@ -78,12 +122,20 @@ const user = ref({
 })
 
 const stats = ref([])
+const quizzes = ref([])
+
+const QuizResults = (quizSessionId) => {
+  // Navigate to quiz results page
+  router.push({ name: 'QuizResults', params: { quizSessionId } })
+}
 
 const fetchUserProfile = async () => {
   try {
     const res = await axiosPrivate.get(`/user/profile/${authStore.id}`)
     const data = res.data
 
+    quizzes.value = data.quizzes || []
+    console.log('Quizzes:', quizzes.value)
     user.value = {
       name: data.name || 'Unknown User',
       email: data.email || 'No Email Provided',
@@ -92,7 +144,8 @@ const fetchUserProfile = async () => {
       overallScore: data.overallScore || 0,
       quizCount: data.quizCount || 0,
       subjectCount: data.subject_count || 0,
-      dob: data.dob || 'Unknown DOB'
+      dob: data.dob || 'Unknown DOB',
+      quizzes: data.quizzes || []
     }
 
     stats.value = [
