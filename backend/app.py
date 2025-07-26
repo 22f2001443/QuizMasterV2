@@ -6,12 +6,15 @@ from flask_cors import CORS
 from werkzeug.security import generate_password_hash
 from sqlalchemy import event
 from flask_security import Security, SQLAlchemyUserDatastore, utils as security_utils
+from flask_session import Session
 
 
 from controller.models import db, User, Role, UserRole , Semester
 from utils.config import config
 from controller.routes import register_routes
 from controller.extensions import security, user_datastore
+from controller.extensions import redis_client
+from controller.extensions import cache
 from controller.models.enums import SemesterEnum
 
 # --- Load environment variables ---
@@ -29,15 +32,19 @@ def seed_semesters():
 def CreateApp():
     app = Flask(__name__)  # No template_folder needed anymore
     app.config.from_object(config)
-    api = Api(app)
 
+    Session(app)
+    cache.init_app(app)   
+
+    api = Api(app)
+    
     return app, api
 # --- Initialize Flask App and API ---
 app, api = CreateApp()
 CORS(app, resources={
         r"/api/*": {
             "origins": '*',
-            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+            "methods": ["GET", "POST", "PUT", "DELETE"]
         }
     })  # Enable CORS for all API routes
 

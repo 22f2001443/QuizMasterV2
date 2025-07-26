@@ -30,6 +30,7 @@
     <!-- Loading/Error -->
     <div v-if="loading" class="text-center text-muted">Loading quizzes...</div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
+    <div v-else-if="filteredQuizzes.length === 0" class="text-center text-muted">No quizzes found.</div>
 
     <!-- Quiz List -->
     <div v-else>

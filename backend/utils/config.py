@@ -1,5 +1,6 @@
 import os
 from dotenv import load_dotenv
+import redis
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -20,3 +21,10 @@ class config:
     SECURITY_SEND_REGISTER_EMAIL = False
     SECURITY_TOKEN_AUTHENTICATION_KEY = "auth_token"
     SECURITY_TOKEN_MAX_AGE = 3600
+    SESSION_TYPE = 'redis'
+    SESSION_PERMANENT = False
+    SESSION_USE_SIGNER = True
+    SESSION_REDIS = redis.from_url(os.getenv("REDIS_URL"))
+    CACHE_TYPE = 'RedisCache'
+    CACHE_REDIS_URL = os.getenv("REDIS_URL")
+    CACHE_DEFAULT_TIMEOUT = 600  # 10 minutes

@@ -28,9 +28,9 @@
     <!-- Loading/Error -->
     <div v-if="loading" class="text-center text-muted">Loading users...</div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
-
+    <div v-else-if="filteredUsers.length === 0" class="text-center text-muted">No users found.</div>
     <!-- Users List -->
-    <div v-else>
+    <div v-else >
       <div
         v-for="user in filteredUsers"
         :key="user.id"

@@ -1,6 +1,6 @@
 from controller.routes.auth import Register, Login, Logout #, ResetPassword
 from controller.routes.user import UserProfile, UserDashboard, QuizStart, getQuestion, QuizResults
-from controller.routes.admin import AdminMetrics, AdminUserManagement, AdminSubjectManagement, AdminChapterManagement, AdminQuizManagement, AdminQuestionManagement, GetStudentDistribution, GetQuizPerformance, GetSubjectAttempts, GetLeaderboard
+from controller.routes.admin import AdminMetrics, AdminUserManagement, AdminSubjectManagement, AdminChapterManagement, AdminQuizManagement, AdminQuestionManagement, GetStudentDistribution, GetQuizPerformance, GetSubjectAttempts, GetLeaderboard, GetStudentStatusCount, DownloadProgress
 
 
 def register_routes(api):
@@ -22,6 +22,8 @@ def register_routes(api):
     api.add_resource(GetSubjectAttempts, '/api/admin/analytics/subject-attempts')
     api.add_resource(GetQuizPerformance, '/api/admin/analytics/quiz-performance')
     api.add_resource(GetLeaderboard, '/api/admin/analytics/leaderboard')
+    api.add_resource(GetStudentStatusCount, '/api/admin/analytics/student-status')
+    api.add_resource(DownloadProgress, '/api/admin/analytics/download')
     
     # Routes for user profile [from controller.routes.user import UserProfile]
     api.add_resource(UserProfile, '/api/user/profile/<user_id>')

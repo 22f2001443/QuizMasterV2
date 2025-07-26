@@ -16,46 +16,48 @@
 
     <!-- Performance Metrics -->
     <div class="mb-4">
-      <h3 class="h4 fw-bold mb-3">Performance Metrics</h3>
-      <div class="row">
-        <div class="col-md-6 mb-3">
-  <div class="card p-4 h-100">
-    <div class="d-flex justify-content-between align-items-center mt-4 mb-2 px-2">
-        <h6 class="fw-semibold fs-6 mb-0">Top 5 Performers</h6>
+      <div class="d-flex justify-content-between align-items-center mt-4 mb-2 px-2">
+        <h3 class="h4 fw-bold mb-3">Performance Metrics</h3>
 
         <button class="btn btn-sm btn-outline-primary" title="Download Progress"
-          @click="handleDownloadCSV(authStore.id)">
+          @click="handleDownloadCSV()">
           <i class="bi bi-download"></i>
         </button>
       </div>
-    <div class="table-responsive">
-      <table class="table table-sm table-striped mb-0">
-        <thead>
-          <tr>
-            <th></th>
-            <th>Name</th>
-            <th>Semester</th>
-            <th>Score (%)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-if="leaderboard.length === 0">
-            <td colspan="4" class="text-center text-muted py-3">No leaderboard data available.</td>
-          </tr>
-          <tr v-for="(student, index) in leaderboard" :key="student.id">
-            <td>{{ index + 1 }}</td>
-            <td>{{ student.name }}</td>
-            <td>{{ student.semester }}</td>
-            <td>{{ student.score }}</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </div>
-</div>
-        <div class="col-md-6 mb-3">
+      <div class="row">
+        <div class="col-md-8 mb-3">
           <div class="card p-4 h-100">
-            <h6>Quiz Completion Rates</h6>
+            <div class="d-flex justify-content-between align-items-center mt-4 mb-2 px-2">
+              <h6 class="fw-semibold fs-6 mb-0">Top 10 Performers</h6>
+            </div>
+            <div class="table-responsive">
+              <table class="table table-sm table-striped mb-0">
+                <thead>
+                  <tr>
+                    <th></th>
+                    <th>Name</th>
+                    <th>Semester</th>
+                    <th>Score (%)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr v-if="leaderboard.length === 0">
+                    <td colspan="4" class="text-center text-muted py-3">No leaderboard data available.</td>
+                  </tr>
+                  <tr v-for="(student, index) in leaderboard" :key="student.id">
+                    <td>{{ index + 1 }}</td>
+                    <td>{{ student.name }}</td>
+                    <td>{{ student.semester }}</td>
+                    <td>{{ student.score }}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-4 mb-3">
+          <div class="card p-4 h-100">
+            <h6>Students' Status</h6>
             <canvas ref="completionChart" height="180"></canvas>
           </div>
         </div>
@@ -69,7 +71,12 @@
         <h6>Quiz Attempts by Subject</h6>
         <canvas ref="subjectChart" height="180"></canvas>
       </div>
+      <div class="card p-4 mb-3">
+        <h6>Average Score by Quiz</h6>
+        <canvas ref="quizChart" height="180"></canvas>
+      </div>
     </div>
+
   </div>
 </template>
 
@@ -86,6 +93,7 @@ const semesterChart = ref(null)
 const completionChart = ref(null)
 const subjectChart = ref(null)
 const leaderboard = ref([])
+const quizChart = ref(null)
 
 const loadSemesterChart = async () => {
   const res = await axios.get('/admin/analytics/student-distribution')
@@ -119,31 +127,47 @@ const loadLeaderboard = async () => {
   leaderboard.value = res.data.top_performers || []
   console.log('Leaderboard Data:', leaderboard.value)
 }
-// 3️⃣ Mock data for completion chart
-const loadCompletionChart = async () => {
-  const data = {
-    completed: 120,
-    incomplete: 30
-  }
 
-  if (!completionChart.value) return
-  new Chart(completionChart.value, {
-    type: 'bar',
-    data: {
-      labels: ['Completed', 'Incomplete'],
-      datasets: [{
-        label: 'Quizzes',
-        data: [data.completed, data.incomplete],
-        backgroundColor: ['#198754', '#dc3545']
-      }]
-    },
-    options: {
-      responsive: true,
-      scales: {
-        y: { beginAtZero: true }
+const loadStudentStatus = async () => {
+  try {
+    const response = await axios.get('admin/analytics/student-status') 
+    const data = response.data
+
+    const active = data.active_count || 0
+    const inactive = data.inactive_count || 0
+
+    if (!completionChart.value) return
+
+    new Chart(completionChart.value, {
+      type: 'pie',
+      data: {
+        labels: ['Active', 'Inactive'],
+        datasets: [{
+          data: [active, inactive],
+          backgroundColor: ['#198754', '#dc3545'],  // Green for active, Red for inactive
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            position: 'bottom'
+          },
+          tooltip: {
+            callbacks: {
+              label: function (context) {
+                let label = context.label || ''
+                let value = context.parsed || 0
+                return `${label}: ${value}`
+              }
+            }
+          }
+        }
       }
-    }
-  })
+    })
+  } catch (error) {
+    console.error('Failed to load chart data:', error)
+  }
 }
 
 
@@ -176,14 +200,68 @@ const loadSubjectChart = async () => {
   })
 }
 
+
+const loadQuizChart = async () => {
+  const res = await axios.get('/admin/analytics/quiz-performance')
+  if (!res || !res.data) return
+  const data = res.data
+  const labels = data.map(item => item.quiz_id)
+  const counts = data.map(item => item.average_score)
+  console.log('Quiz Chart Data:', labels, counts)
+
+  if (!quizChart.value) return
+  new Chart(quizChart.value, {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{
+        label: 'Average Score',
+        data: counts,
+        backgroundColor: '#0d6efd'
+      }]
+    },
+    options: {
+      responsive: true,
+      indexAxis: 'x',
+      scales: {
+        x: { beginAtZero: true,
+          title: {
+            display: true,
+            text: 'Quiz ID'
+          }
+         }
+      }
+    }
+  })
+}
+
+const handleDownloadCSV = async () => {
+  try {
+    const response = await axios.get(`/admin/analytics/download`, {
+      responseType: 'blob'
+    })
+
+    const url = window.URL.createObjectURL(new Blob([response.data], { type: 'text/csv' }));
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `progress.csv`)
+    document.body.appendChild(link)
+    link.click()
+  } catch (error) {
+    console.error('Error downloading CSV:', error)
+  }
+}
+
+
 // Load all charts on component mount
 onMounted(async () => {
   try {
     await nextTick()
     await loadSemesterChart()
-    await loadCompletionChart()
+    await loadStudentStatus()
     await loadLeaderboard()
     await loadSubjectChart()
+    await loadQuizChart()
   } catch (error) {
     console.error('Error loading one or more charts:', error)
   }

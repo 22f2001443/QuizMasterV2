@@ -37,6 +37,7 @@
         <div v-else class="table-responsive bg-white rounded shadow-sm">
             <table class="table align-middle mb-0">
                 <thead class="bg-white">
+
                     <tr>
                         <th class="text-dark">Subject Name</th>
                         <th class="text-dark">Subject Code</th>
@@ -48,6 +49,9 @@
                     </tr>
                 </thead>
                 <tbody>
+                    <tr v-if="filteredSubjects.length === 0">
+                        <td colspan="7" class="text-center text-muted py-3">No subjects found.</td>
+                    </tr>
                     <tr v-for="(subject, index) in filteredSubjects" :key="index" class="border-top">
                         <td class="text-dark">{{ subject.name }}</td>
                         <td class="text-muted">{{ subject.code }}</td>

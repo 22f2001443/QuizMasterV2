@@ -51,6 +51,9 @@
           </tr>
         </thead>
         <tbody>
+          <tr v-if="filteredChapters.length === 0">
+            <td colspan="4" class="text-center text-muted py-3">No chapters found.</td>
+          </tr>
           <tr v-for="chapter in filteredChapters" :key="chapter.id" class="border-top">
             <td>{{ chapter.title }}</td>
             <td>{{ chapter.description || '—' }}</td>

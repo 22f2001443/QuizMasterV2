@@ -8,6 +8,7 @@ from controller.models.user_model import User, Role
 from controller.models import db
 from controller.extensions import user_datastore
 from controller.models.semester_model import Semester
+from controller.extensions import redis_client
 
 # --- Request Parsers ---
 register_parser = reqparse.RequestParser()
@@ -173,6 +174,7 @@ class Logout(Resource):
         response = make_response(jsonify(result), 200)
         # Clear the session cookie
         response.delete_cookie('session')
+        redis_client.flushdb()
         return response
     
 # # --- Resource: Reset --- #working

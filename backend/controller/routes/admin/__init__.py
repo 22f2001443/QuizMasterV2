@@ -1,16 +1,26 @@
+from os import abort
 from flask_restful import Resource, reqparse
 from flask import jsonify, make_response, request
 from flask_security import auth_token_required, roles_required
 from datetime import datetime, timezone
-
-from controller.models import db, User, Subject, Quiz, Score, Semester, Chapter, Question, SemesterEnum, QuestionTypeEnum
 from sqlalchemy.exc import SQLAlchemyError
+import json
+
+from controller.extensions import redis_client
+from controller.routes.admin.analytics import GetStudentDistribution, GetSubjectAttempts, GetLeaderboard, GetQuizPerformance, GetStudentStatusCount, DownloadProgress
+from controller.models import db, User, Subject, Quiz, Score, Semester, Chapter, Question, SemesterEnum, QuestionTypeEnum
 
 # --- Resource: Admin Metrics --- #
 class AdminMetrics(Resource):
     @auth_token_required
     @roles_required('admin')
     def get(self):
+
+        cached_metrics = redis_client.get("admin_metrics")
+        if cached_metrics:
+            print("Metrics fetched from Redis cache.")
+            return make_response(jsonify(json.loads(cached_metrics)), 200)
+
         # Fetch total users, subjects, quizzes, and scores
         total_users = User.query.count()
         total_subjects = Subject.query.count()
@@ -24,13 +34,14 @@ class AdminMetrics(Resource):
             'total_attempts': total_scores
         }
 
+        # Cache to Redis with 5-minute expiry
+        redis_client.set("admin_metrics", json.dumps(result), ex=300)
+        print("Metrics fetched from database and cached in Redis.")
+
         return make_response(jsonify(result), 200)
 
 # --- Parser for editing user ---
 user_edit_parser = reqparse.RequestParser()
-user_edit_parser.add_argument('name', type=str, required=False)
-user_edit_parser.add_argument('email', type=str, required=False)
-user_edit_parser.add_argument('dob', type=str, required=False)
 user_edit_parser.add_argument('active', type=bool, required=False)
 
 # --- Resource: Admin User Management --- #
@@ -65,12 +76,6 @@ class AdminUserManagement(Resource):
             return {"message": "User not found"}, 404
 
         args = user_edit_parser.parse_args()
-        if args['name']:
-            user.name = args['name']
-        if args['email']:
-            user.email = args['email']
-        if args['dob']:
-            user.dob = args['dob']
         if args['active'] is not None:
             user.active = args['active']
 
@@ -84,16 +89,13 @@ class AdminUserManagement(Resource):
     @auth_token_required
     @roles_required('admin')
     def delete(self):
-        print("Raw request data:", request.get_data(as_text=True))
         data = request.get_json()
-        print("Parsed JSON data:", data)
         user_id = data.get('id')
-        print(f"Deleting user with ID: {user_id}")
+
         if not user_id:
             return {"message": "User ID is required for deletion"}, 400
-
+        
         user = User.query.get(user_id)
-        print(f"Found user: {user}")
         if not user:
             return {"message": "User not found"}, 404
 
@@ -108,26 +110,6 @@ class AdminUserManagement(Resource):
 
 # --- Resource: Admin Subject Management --- #
 class AdminSubjectManagement(Resource):
-    @auth_token_required
-    @roles_required('admin')
-    def delete(self):
-        data = request.get_json()
-        subject_id = data.get('id')
-
-        if not subject_id:
-            return {"message": "Subject ID is required for deletion"}, 400
-
-        subject = Subject.query.get(subject_id)
-        if not subject:
-            return {"message": "Subject not found"}, 404
-
-        try:
-            db.session.delete(subject)
-            db.session.commit()
-            return {"message": f"Subject {subject_id} deleted successfully"}, 200
-        except SQLAlchemyError as e:
-            db.session.rollback()
-            return {"message": "Subject deletion failed", "error": str(e)}, 500
     @auth_token_required
     @roles_required('admin')
     def get(self):
@@ -157,7 +139,7 @@ class AdminSubjectManagement(Resource):
                 "code": subject.code,
                 "department": subject.department,
                 "faculty": subject.faculty,
-                "semesters": [sem.id for sem in subject.semesters], #bug it is
+                "semesters": [sem.name.value for sem in subject.semesters], #bug it is
                 "chapters_count": len(subject.chapters) if subject.chapters else 0
             } for subject in subjects
         ]
@@ -177,7 +159,7 @@ class AdminSubjectManagement(Resource):
 
         try:
             # Fetch Semester objects from provided IDs
-            semester_ids = data.get('semester_ids', [])
+            semester_ids = data.get('semester_ids', []) # Unnecessary but safe
             semesters = Semester.query.filter(Semester.id.in_(semester_ids)).all()
 
             if not semesters:
@@ -227,8 +209,9 @@ class AdminSubjectManagement(Resource):
             # Update many-to-many semesters relationship
             semester_ids = data.get('semester_ids', [])
             semesters = Semester.query.filter(Semester.id.in_(semester_ids)).all()
-
-            subject.semesters = semesters
+            
+            if semesters:
+                subject.semesters = semesters
 
             db.session.commit()
             return {"message": f"Subject {subject.name} updated successfully"}, 200
@@ -237,7 +220,26 @@ class AdminSubjectManagement(Resource):
             db.session.rollback()
             return {"message": "Subject update failed", "error": str(e)}, 500
     
+    @auth_token_required
+    @roles_required('admin')
+    def delete(self):
+        data = request.get_json()
+        subject_id = data.get('id')
 
+        if not subject_id:
+            return {"message": "Subject ID is required for deletion"}, 400
+
+        subject = Subject.query.get(subject_id)
+        if not subject:
+            return {"message": "Subject not found"}, 404
+
+        try:
+            db.session.delete(subject)
+            db.session.commit()
+            return {"message": f"Subject {subject.id} deleted successfully"}, 200
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {"message": "Subject deletion failed", "error": str(e)}, 500
 # --- Resource: Admin Chapter Management --- #
 
 class AdminChapterManagement(Resource):
@@ -252,7 +254,8 @@ class AdminChapterManagement(Resource):
                     {"name": "description", "label": "Description", "type": "textarea", "required": False}
                 ]
             }), 200)
-
+        if not subject_id:
+            return {"message": "Subject ID is required"}, 400
         subject = Subject.query.get(subject_id)
         if not subject:
             return {"message": "Subject not found"}, 404
@@ -305,6 +308,12 @@ class AdminChapterManagement(Resource):
         except SQLAlchemyError as e:
             db.session.rollback()
             return {"message": "Database error", "error": str(e)}, 500
+    
+    # PUT: Update an existing chapter
+    @auth_token_required
+    @roles_required('admin')
+    def put(self, subject_id):
+        return
 
     # DELETE: Remove a chapter by ID
     @auth_token_required
@@ -328,7 +337,7 @@ class AdminChapterManagement(Resource):
             db.session.rollback()
             return {"message": "Deletion failed", "error": str(e)}, 500
         
-    # PUT: Update an existing chapter
+    
 
 
 class AdminQuizManagement(Resource):
@@ -385,12 +394,6 @@ class AdminQuizManagement(Resource):
                     #     "type": "number",
                     #     "required": False
                     # },
-                    # {
-                    #     "name": "is_active",
-                    #     "label": "Is Active?",
-                    #     "type": "checkbox",
-                    #     "required": False
-                    # },
                     {
                         "name": "start_time",
                         "label": "Start Time",
@@ -428,6 +431,56 @@ class AdminQuizManagement(Resource):
     
     @auth_token_required
     @roles_required('admin')
+    def post(self):
+        data = request.get_json()
+
+        title = data['title']
+        chapter_id = data['chapter_id']
+        description = data['description']
+        #time_limit = data.get('time_limit', None)  # Optional, can be None
+        start_time_str = data['start_time']
+        expire_time_str = data['expire_time']
+
+        if not title or not chapter_id or not start_time_str or not expire_time_str:
+            return {"message": "Title, Chapter ID, Start Time, and Expire Time are required"}, 400
+
+        # Validate chapter existence
+        chapter = Chapter.query.get(chapter_id)
+        if not chapter:
+            return {"message": "Invalid chapter ID"}, 400
+
+        try:
+            # Convert datetime strings to Python datetime objects
+            start_time = datetime.fromisoformat(start_time_str) if start_time_str else None
+            expire_time = datetime.fromisoformat(expire_time_str) if expire_time_str else None
+            if start_time >= expire_time:
+                return {"message": "start_time must be earlier than expire_time."}, 400
+            new_quiz = Quiz(
+                title=title,
+                chapter_id=chapter_id,
+                description=description,
+                #time_limit=time_limit,
+                start_time=start_time,
+                expire_time=expire_time,
+                # is_active=is_active,
+                total_marks=0  # Initial marks = 0
+         )
+
+            db.session.add(new_quiz)
+            db.session.commit()
+
+            return make_response(jsonify({
+                "message": "Quiz created successfully",
+                "id": new_quiz.id
+            }), 201)
+        except ValueError as ve:
+            db.session.rollback()
+            return {"message": "Invalid date format", "error": str(ve)}, 400
+        except Exception as e:
+            db.session.rollback()
+            return {"message": "Quiz creation failed", "error": str(e)}, 500
+    @auth_token_required
+    @roles_required('admin')
     def put(self):
         data = request.get_json()
         quiz_id = data.get('id')
@@ -453,81 +506,6 @@ class AdminQuizManagement(Resource):
             db.session.rollback()
             return {"message": "Quiz update failed", "error": str(e)}, 500
 
-    # @auth_token_required
-    # @roles_required('admin')    
-    # def delete(self):
-    #     data = request.get_json()
-    #     quiz_id = data.get('id')
-
-    #     if not quiz_id:
-    #         return {"message": "Quiz ID is required for deletion"}, 400
-
-    #     quiz = Quiz.query.get(quiz_id)
-    #     if not quiz:
-    #         return {"message": "Quiz not found"}, 404
-
-    #     try:
-    #         db.session.delete(quiz)
-    #         db.session.commit()
-    #         return {"message": f"Quiz {quiz_id} deleted successfully"}, 200
-    #     except SQLAlchemyError as e:
-    #         db.session.rollback()
-    #         return {"message": "Quiz deletion failed", "error": str(e)}, 500
-    
-    @auth_token_required
-    @roles_required('admin')
-    def post(self):
-        data = request.get_json()
-
-        title = data.get('title')
-        chapter_id = data.get('chapter_id')
-        description = data.get('description')
-        time_limit = data.get('time_limit')
-        start_time_str = data.get('start_time')
-        expire_time_str = data.get('expire_time')
-
-        if not title or not chapter_id:
-            return {"message": "Title and Chapter ID are required"}, 400
-
-        # Validate chapter existence
-        chapter = Chapter.query.get(chapter_id)
-        if not chapter:
-            return {"message": "Invalid chapter ID"}, 400
-
-        try:
-            # Convert datetime strings to Python datetime objects
-            start_time = datetime.fromisoformat(start_time_str) if start_time_str else None
-            expire_time = datetime.fromisoformat(expire_time_str) if expire_time_str else None
-
-            # Determine if the quiz is active
-            now = datetime.now(timezone.utc)
-            is_active = False
-            if start_time and expire_time:
-                is_active = start_time <= now <= expire_time
-
-            new_quiz = Quiz(
-                title=title,
-                chapter_id=chapter_id,
-                description=description,
-                time_limit=time_limit,
-                start_time=start_time,
-                expire_time=expire_time,
-                # is_active=is_active,
-                total_marks=0  # Initial marks = 0
-         )
-
-            db.session.add(new_quiz)
-            db.session.commit()
-
-            return make_response(jsonify({
-                "message": "Quiz created successfully",
-                "id": new_quiz.id
-            }), 201)
-
-        except Exception as e:
-            db.session.rollback()
-            return {"message": "Quiz creation failed", "error": str(e)}, 500
-        
     @auth_token_required
     @roles_required('admin')
     def delete(self):
@@ -551,6 +529,8 @@ class AdminQuizManagement(Resource):
 
 # --- Resource: Admin Question Management --- #
 class AdminQuestionManagement(Resource):
+    @auth_token_required
+    @roles_required('admin')
     def get(self, quiz_id):
         if request.args.get('form_config') == 'true':
             return make_response(jsonify({
@@ -593,6 +573,9 @@ class AdminQuestionManagement(Resource):
         }
 
         return make_response(jsonify(result), 200)
+    
+    @auth_token_required
+    @roles_required('admin')
     def post(self, quiz_id):
         data = request.get_json()
 
@@ -600,7 +583,7 @@ class AdminQuestionManagement(Resource):
         question_type = data.get('question_type')
         marks = data.get('marks')
         options = data.get('options', [])
-        answer = data.get('answer')
+        answer = data['answer']
 
         if not text or not question_type or not marks or not answer:
             return {"message": "Text, Question Type, Marks, and Answer are required"}, 400
@@ -615,7 +598,7 @@ class AdminQuestionManagement(Resource):
                 text=text,
                 question_type=QuestionTypeEnum[question_type],
                 marks=marks,
-                options=options,
+                options=options if question_type == QuestionTypeEnum.MCQ else None,
                 correct_answer=answer,
                 quiz_id=quiz.id
             )
@@ -648,16 +631,20 @@ class AdminQuestionManagement(Resource):
         if not question:
             return {"message": "Question not found"}, 404
 
+        if question.quiz_id != quiz_id:
+            return {"message": "Question does not belong to this quiz"}, 400
+        
+        quiz = Quiz.query.get(quiz_id)
+        if not quiz:
+            return {"message": "Quiz not found"}, 404
+
         # Update question fields
         question.text = data.get('text', question.text)
         question.question_type = QuestionTypeEnum[data.get('question_type', question.question_type.name)]
         question.marks = data.get('marks', question.marks)
-        question.options = data.get('options', question.options)
+        question.options = data.get('options' , question.options) if question.question_type == QuestionTypeEnum.MCQ else None
         question.correct_answer = data.get('answer', question.correct_answer)
 
-        quiz = Quiz.query.get(quiz_id)
-        if not quiz:
-            return {"message": "Quiz not found"}, 404
         try:
             db.session.commit()
             # Update total marks for the quiz
@@ -697,82 +684,10 @@ class AdminQuestionManagement(Resource):
             db.session.rollback()
             return {"message": "Question deletion failed", "error": str(e)}, 500
 
-# --- Resource: Admin Analytics --- #
 
-class GetStudentDistribution(Resource):
-    @auth_token_required
-    @roles_required('admin')
-    def get(self):
-        # Fetch all semesters and their student counts
-        semesters = Semester.query.all()
-        distribution = []
-
-        for semester in semesters:
-            student_count = User.query.filter_by(semester_id=semester.id).count()
-            distribution.append({
-                "semester": semester.name.value,
-                "student_count": student_count
-            })
-
-        return make_response(jsonify(distribution), 200)
-
-class GetSubjectAttempts(Resource):
-    @auth_token_required
-    @roles_required('admin')
-    def get(self):
-        # Fetch all subjects and their attempt counts
-        subjects = Subject.query.all()
-        attempts = []
-
-        for subject in subjects:
-            attempt_count = db.session.query(Score).\
-            join(Score.quiz).\
-            join(Quiz.chapter).\
-            join(Chapter.subject).\
-            filter(Subject.id == subject.id).\
-            count()
-            attempts.append({
-                "subject_name": subject.name,
-                "attempt_count": attempt_count
-            })
-
-        return make_response(jsonify(attempts), 200)
-        
-class GetLeaderboard(Resource):
-    @auth_token_required
-    @roles_required('admin')
-    def get(self):
-        # Fetch top 10 students based on their average scores
-        top_students = db.session.query(
-            User.id, User.name, Semester.name.label('semester_name'), db.func.avg(Score.percentage).label('average_score')
-        ).join(Score).join(Semester, User.semester_id == Semester.id).group_by(User.id, Semester.name).order_by(db.desc('average_score')).limit(5).all()
-
-        leaderboard = [
-            {
-                "id": student.id,
-                "name": student.name,
-                "semester": student.semester_name.value if student.semester_name else None,
-                "score": round(student.average_score, 2) if student.average_score is not None else 0
-            } for student in top_students
-        ]
-
-        return make_response(jsonify({"top_performers": leaderboard}), 200)
-    
-class GetQuizPerformance(Resource):
-    @auth_token_required
-    @roles_required('admin')
-    def get(self):
-        # Fetch all quizzes and their average scores
-        quizzes = Quiz.query.all()
-        performance = []
-
-        for quiz in quizzes:
-            average_score = db.session.query(db.func.avg(Score.score)).filter(Score.quiz_id == quiz.id).scalar() or 0
-            performance.append({
-                "quiz_id": quiz.id,
-                "title": quiz.title,
-                "average_score": average_score
-            })
-
-        return make_response(jsonify(performance), 200)
-    
+GetStudentDistribution = GetStudentDistribution
+GetSubjectAttempts = GetSubjectAttempts
+GetLeaderboard = GetLeaderboard
+GetQuizPerformance = GetQuizPerformance
+GetStudentStatusCount = GetStudentStatusCount
+DownloadProgress = DownloadProgress

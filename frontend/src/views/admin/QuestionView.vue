@@ -21,13 +21,26 @@
       </button>
     </div>
 
+    <!-- Search -->
+     <!-- Search -->
+    <div class="mb-4">
+      <div class="input-group bg-body-tertiary shadow-sm"
+        style="background-color: #f1f3f5; border: 1px solid #ced4da; border-radius: 0.375rem;">
+        <span class="input-group-text bg-transparent border-0">
+          <i class="bi bi-search text-muted"></i>
+        </span>
+        <input type="text" v-model="searchTerm" class="form-control bg-transparent border-0"
+          placeholder="Search questions" style="padding: 0.75rem 1rem; font-size: 1rem;" />
+      </div>
+    </div>
+
     <!-- Loading/Error -->
     <div v-if="loading" class="text-muted text-center">Loading questions...</div>
     <div v-else-if="error" class="alert alert-danger">{{ error }}</div>
 
     <!-- Question Cards -->
     <div v-else class="row g-4">
-      <div v-for="question in questions" :key="question.id" class="col-12">
+      <div v-for="question in filteredQuestions" :key="question.id" class="col-12">
         <div class="p-4 shadow-sm rounded-4 border d-flex justify-content-between align-items-start">
           <!-- Question Content -->
           <div class="d-flex flex-column gap-2">
@@ -82,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { axiosPrivate } from '@/api/axios'
 import { useToast } from 'vue-toastification'
@@ -100,6 +113,15 @@ const error = ref(null)
 const questions = ref([])
 const quizTitle = ref('')
 const chapter_name = ref('')
+
+const searchTerm = ref('')
+const filteredQuestions = computed(() => {
+  if (!searchTerm.value.trim()) return questions.value
+  return questions.value.filter((q) =>
+    q.text.toLowerCase().includes(searchTerm.value.trim().toLowerCase())
+  )
+})
+
 const formMode = ref('add')
 const selectedQuestion = ref(null)
 const modalCloseBtn = ref(null)
@@ -126,6 +148,7 @@ const fetchQuestions = async () => {
     loading.value = false
   }
 }
+
 
 const handleDeleteQuestion = async (id) => {
   if (!confirm('Are you sure you want to delete this question?')) return
