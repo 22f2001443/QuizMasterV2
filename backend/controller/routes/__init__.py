@@ -1,5 +1,5 @@
 from controller.routes.auth import Register, Login, Logout #, ResetPassword
-from controller.routes.user import UserProfile, UserDashboard, QuizStart, getQuestion, QuizResults
+from controller.routes.user import UserProfile, UserDashboard, QuizStart, getQuestion, QuizResults, UserDownloadProgress
 from controller.routes.admin import AdminMetrics, AdminUserManagement, AdminSubjectManagement, AdminChapterManagement, AdminQuizManagement, AdminQuestionManagement, GetStudentDistribution, GetQuizPerformance, GetSubjectAttempts, GetLeaderboard, GetStudentStatusCount, DownloadProgress
 
 
@@ -33,3 +33,4 @@ def register_routes(api):
     api.add_resource(QuizResults,
                  '/api/user/quiz/results/',                   # Without parameter
                  '/api/user/quiz/results/<string:quiz_session_id>')  # With parameter
+    api.add_resource(UserDownloadProgress, '/api/user/download/progress/<user_id>')

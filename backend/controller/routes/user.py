@@ -1,11 +1,14 @@
 from flask_restful import Resource, reqparse
 from flask import jsonify, make_response, request
-from flask_security import auth_token_required
+from flask_security import auth_token_required, roles_required
 from datetime import datetime
+import json
+from io import StringIO
+import csv
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from controller.models import db, User, Subject, Quiz, Score, Semester, Chapter, Question, SemesterEnum, QuestionTypeEnum
-
+from controller.extensions import redis_client, cache
 # --- Optional: parser to fetch by email or id ---
 # profile_parser = reqparse.RequestParser()
 # profile_parser.add_argument('email', type=str, required=False)
@@ -13,32 +16,23 @@ from controller.models import db, User, Subject, Quiz, Score, Semester, Chapter,
 
 class UserProfile(Resource):
     @auth_token_required
-    def get(self, user_id):
-        
+    def get(self, user_id):  
+        if not user_id:
+            return make_response(jsonify({'message': 'User ID is required'}), 400)
         user = User.query.get(user_id)
-
-        quizzes = user.scores if user else []
-
         if not user:
             return {'message': 'User not found'}, 404
 
-        response = {
-            'id': user.id,
-            'name': user.name,
-            'email': user.email,
-            #'roles': user.roles,
-            'semester': user.semester.name.value if user.semester else None,
-            'joinedDate': {
-                'year': user.created_at.year,
-                'month': user.created_at.month,
-                'day': user.created_at.day
-            },
-            'overallScore': round(Score.query.filter_by(user_id=user.id).with_entities(db.func.avg(Score.percentage)).scalar() or 0, 2),
-            'quizCount': Score.query.filter_by(user_id=user.id).distinct(Score.quiz_id).count(),
-            #'subjects': [{'id': subject.id, 'name': subject.name} for subject in user.subjects],
-            'subject_count': len(user.semester.subjects) if user.semester else 0,
-            'dob': user.dob.strftime('%Y-%m-%d') if user.dob else 'Unknown DOB',
-            'quizzes': [
+        quizzes = user.scores if user else []
+
+        cache_key = f"user:{user_id}:quizzes"
+        cached_quizzes = redis_client.get(cache_key)
+
+        if cached_quizzes:
+            quizzes_data = json.loads(cached_quizzes)
+        else:
+            quizzes = user.scores if user else []
+            quizzes_data = [
                 {
                     'id': quiz.id,
                     'name' : Quiz.query.get(quiz.quiz_id).title if quiz.quiz_id else None,
@@ -49,13 +43,33 @@ class UserProfile(Resource):
                     'status': 'Submitted' if quiz.is_submitted else 'Incomplete',
                 }
                 for quiz in quizzes
-            ],
+            ]
+            # Caching the result for 5 minutes
+            redis_client.setex(cache_key, 300, json.dumps(quizzes_data))
+
+        response = {
+            'id': user.id,
+            'name': user.name,
+            'email': user.email,
+            'semester': user.semester.name.value if user.semester else None,
+            'dob': user.dob.strftime('%Y-%m-%d') if user.dob else 'Unknown DOB',
+            'joinedDate': {
+                'year': user.created_at.year,
+                'month': user.created_at.month,
+                'day': user.created_at.day
+            },
+            'overallScore': round(Score.query.filter_by(user_id=user.id).with_entities(db.func.avg(Score.percentage)).scalar() or 0, 2),
+            'quizCount': Score.query.filter_by(user_id=user.id).distinct(Score.quiz_id).count(),
+            'subject_count': len(user.semester.subjects) if user.semester else 0,
+            'quizzes': quizzes_data,
         }
         return make_response(jsonify(response), 200)
     
 class UserDashboard(Resource):
     @auth_token_required
     def get(self, user_id):
+        if not user_id:
+            return make_response(jsonify({'message': 'User ID is required'}), 400)
         user = User.query.get(user_id)
         if not user:
             return make_response(jsonify({'message': 'User not found'}), 404)
@@ -70,7 +84,7 @@ class UserDashboard(Resource):
         response = {
             'user_id': user.id,
             'name': user.name,
-            'email': user.email,
+            # 'email': user.email,
             'semester': user.semester.name.value if user.semester else None,
             'subjects': [{'id': subject.id, 'name': subject.name} for subject in subjects],
             # 'chapters': [
@@ -101,10 +115,40 @@ class UserDashboard(Resource):
 
 class QuizStart(Resource):
     @auth_token_required
-    def post(self, quiz_id):
-        data = request.get_json()
+    def get(self, quiz_id):
+        if not quiz_id:
+            return make_response(jsonify({'message': 'Quiz ID is required'}), 400)
+        quiz = Quiz.query.get(quiz_id)
+        if not quiz:
+            return make_response(jsonify({'message': 'Quiz not found'}), 404)
 
+        response = {
+            'id': quiz.id,
+            'title': quiz.title,
+            'description': quiz.description,
+            'total_marks': quiz.total_marks,
+            'time_limit': quiz.time_limit,
+            'is_active': quiz.is_active,
+            'chapter_name': quiz.chapter.name if quiz.chapter else None,
+            'questions_count': len(quiz.questions),
+            'subject_name': quiz.chapter.subject.name if quiz.chapter and quiz.chapter.subject else None,
+        }
+
+        return make_response(jsonify(response), 200)
+
+    @auth_token_required
+    def post(self, quiz_id):
+        if not quiz_id:
+            return make_response(jsonify({'message': 'Quiz ID is required'}), 400)
+        
+        data = request.get_json()
+        if not data:
+            return make_response(jsonify({'message': 'No data provided'}), 400)
+        
         user_id = data.get('user_id')
+        if not user_id:
+            return make_response(jsonify({'message': 'User ID is required'}), 400)
+        
         user = User.query.get(user_id)
         quiz = Quiz.query.get(quiz_id)
 
@@ -147,36 +191,20 @@ class QuizStart(Resource):
             db.session.rollback()
             return make_response(jsonify({f'message': f'Error starting quiz session: {error}'}), 500)
 
-    @auth_token_required
-    def get(self, quiz_id):
-        quiz = Quiz.query.get(quiz_id)
-        if not quiz:
-            return make_response(jsonify({'message': 'Quiz not found'}), 404)
-
-        response = {
-            'id': quiz.id,
-            'title': quiz.title,
-            'description': quiz.description,
-            'total_marks': quiz.total_marks,
-            'time_limit': quiz.time_limit,
-            'is_active': quiz.is_active,
-            'chapter_name': quiz.chapter.name if quiz.chapter else None,
-            'questions_count': len(quiz.questions),
-            'subject_name': quiz.chapter.subject.name if quiz.chapter and quiz.chapter.subject else None,
-        }
-
-        return make_response(jsonify(response), 200)
+    
     
 
 class getQuestion(Resource):
     @auth_token_required
     def get(self, score_entry_id):
-        score_entry = Score.query.get(score_entry_id)
+        if not score_entry_id:
+            return make_response(jsonify({'message': 'Score entry ID is required'}), 400)
         
+        score_entry = Score.query.get(score_entry_id)
         if not score_entry:
             return make_response(jsonify({'message': 'Score entry not found'}), 404)
         if score_entry.is_submitted :
-            return make_response(jsonify({'message': 'You have already submitted this quiz'}), 400)
+            return make_response(jsonify({'message': 'You have already submitted this quiz'}), 401)
         quiz = Quiz.query.get(score_entry.quiz_id)
         if not quiz:
             return make_response(jsonify({'message': 'Quiz not found'}), 404)
@@ -292,4 +320,56 @@ class QuizResults(Resource):
             'question_count': len(questions) if score.quiz_id else 0,
         } for score in scores]
 
-        return make_response(jsonify(results), 200)
+        return make_response(jsonify(results), 200) # This part (no parameter) is for fetching all quiz results for a user is redundant, as it is already handled in the UserProfile route. Still keeping it for consistency.
+    
+class UserDownloadProgress(Resource):
+    @auth_token_required
+    def get(self, user_id):
+        if not user_id:
+            return make_response(jsonify({'message': 'User ID is required'}), 400)
+        user = User.query.get(user_id)
+        if not user:
+            return make_response(jsonify({'message': 'User not found'}), 404)
+        
+        # Fetching quizzes for the user
+        cache_key = f"user:{user_id}:quizzes"
+        cached_quizzes = redis_client.get(cache_key)
+
+        if cached_quizzes:
+            quizzes_data = json.loads(cached_quizzes)
+        else:
+            quizzes = user.scores if user else []
+            quizzes_data = [
+                {
+                    'id': quiz.id,
+                    'name' : Quiz.query.get(quiz.quiz_id).title if quiz.quiz_id else None,
+                    'chapter': Quiz.query.get(quiz.quiz_id).chapter.name if quiz.quiz_id and Quiz.query.get(quiz.quiz_id).chapter else None,
+                    'subject': Quiz.query.get(quiz.quiz_id).chapter.subject.name if quiz.quiz_id and Quiz.query.get(quiz.quiz_id).chapter else None,
+                    'score': quiz.percentage,
+                    'date': quiz.updated_at.strftime('%Y-%m-%d %H:%M:%S') if quiz.updated_at else 'Unknown Date',
+                    'status': 'Submitted' if quiz.is_submitted else 'Incomplete',
+                }
+                for quiz in quizzes
+            ]
+            # Caching the result for 5 minutes
+            redis_client.setex(cache_key, 300, json.dumps(quizzes_data))
+
+        # Prepare CSV data
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow(['Quiz ID', 'Quiz Name', 'Chapter', 'Subject', 'Score', 'Date', 'Status'])
+        for quiz in quizzes_data:
+            writer.writerow([
+                quiz['id'],
+                quiz['name'],
+                quiz['chapter'],
+                quiz['subject'],
+                quiz['score'],
+                quiz['date'],
+                quiz['status']
+            ])
+        output.seek(0)
+        return make_response(output.getvalue(), 200, {
+            'Content-Type': 'text/csv',
+            'Content-Disposition': f'attachment; filename=quiz_progress_{user_id}.csv'
+        })

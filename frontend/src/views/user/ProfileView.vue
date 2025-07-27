@@ -158,6 +158,24 @@ const fetchUserProfile = async () => {
   }
 }
 
+const handleDownloadCSV = async (userId) => {
+  try {
+    const response = await axiosPrivate.get(`user/download/progress/${userId}`, {
+      responseType: 'blob'
+    })
+
+    const url = window.URL.createObjectURL(new Blob([response.data]))
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `progress_${userId}.csv`)
+    document.body.appendChild(link)
+    link.click()
+  } catch (error) {
+    console.error('Error downloading CSV:', error)
+  }
+}
+
+
 onMounted(fetchUserProfile)
 </script>
 

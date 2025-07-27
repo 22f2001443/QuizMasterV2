@@ -5,7 +5,7 @@ from flask import jsonify, make_response, request, Blueprint
 from flask_security import auth_token_required, roles_required
 from datetime import datetime, timezone
 import json
-from io import BytesIO, StringIO
+from io import StringIO
 import csv
 
 from controller.extensions import redis_client

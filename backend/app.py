@@ -44,7 +44,7 @@ app, api = CreateApp()
 CORS(app, resources={
         r"/api/*": {
             "origins": '*',
-            "methods": ["GET", "POST", "PUT", "DELETE"]
+            "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
         }
     })  # Enable CORS for all API routes
 
