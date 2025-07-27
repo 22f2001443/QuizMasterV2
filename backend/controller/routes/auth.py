@@ -140,6 +140,10 @@ class Login(Resource):
             result = {'message': 'Authentication token generation failed'}
             return result, 500
 
+        if not user.is_active:
+            result ={'message': 'User is not active, contact administator'}
+            return result, 403
+
         security_utils.login_user(user)
 
         # Return success message with user details and auth token

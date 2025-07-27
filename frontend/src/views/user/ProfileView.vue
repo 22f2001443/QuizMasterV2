@@ -73,7 +73,7 @@
             </thead>
             <tbody>
               <tr v-if="quizzes.length === 0">
-                <td colspan="5" class="text-center text-muted py-3">No quiz data available.</td>
+                <td colspan="6" class="text-center text-muted py-3">No quiz data available.</td>
               </tr>
               <tr v-for="quiz in quizzes" :key="quiz.name">
                 <td>{{ quiz.name }}</td>
@@ -84,7 +84,7 @@
                 <!-- <td class="text-muted">{{ quiz.time }}</td> -->
                 <td>
                   <button class="btn btn-sm btn-outline-dark w-100" @click="QuizResults(quiz.id)">{{ quiz.status
-                    }}</button>
+                  }}</button>
                 </td>
               </tr>
             </tbody>
@@ -93,19 +93,54 @@
       </div>
       <h2 class="text-[#141414] text-[22px] font-bold leading-tight tracking-[-0.015em] px-4 pb-3 pt-5">Overall
         Performance</h2>
+      <div class="card p-4 mb-3">
+        <h6>Quiz Attempts (Last 30 Days)</h6>
+        <canvas ref="scoreChart" height="180"></canvas>
+      </div>
+      <!-- <div v-else class="mb-3 p-4 card">
+        <h6> Nothing to show</h6>
+      </div> -->
+
     </div>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, nextTick, watch } from 'vue'
 import { axiosPrivate } from '@/api/axios'
 import { useAuthStore } from '@/stores/authStore'
 import { useRouter } from 'vue-router'
+import { useToast } from 'vue-toastification';
+import {
+  Chart,
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  Title,
+  CategoryScale,
+  Tooltip,
+  Legend
+} from 'chart.js'
+
+Chart.register(
+  LineController,
+  LineElement,
+  PointElement,
+  LinearScale,
+  CategoryScale,
+  Title,
+  Tooltip,
+  Legend
+)
 
 const router = useRouter()
 const activeTab = ref('overview')
 const authStore = useAuthStore()
+const toast = useToast()
+
+
+
 const user = ref({
   name: '',
   email: '',
@@ -123,6 +158,7 @@ const user = ref({
 
 const stats = ref([])
 const quizzes = ref([])
+const scoreChart = ref(null)
 
 const QuizResults = (quizSessionId) => {
   // Navigate to quiz results page
@@ -174,9 +210,112 @@ const handleDownloadCSV = async (userId) => {
     console.error('Error downloading CSV:', error)
   }
 }
+const loadScoreChart = async () => {
 
+  if (!scoreChart.value || quizzes.value.length === 0){
+    console.log('scoreChart ref:', scoreChart.value)
+    console.log('quizzes:', quizzes.value)
 
-onMounted(fetchUserProfile)
+    return;
+  }
+
+  const now = new Date()
+  const thirtyDaysAgo = new Date(now)
+  thirtyDaysAgo.setDate(now.getDate() - 30)
+
+  // Step 1: Filter quizzes from the last 30 days
+  const recentQuizzes = quizzes.value.filter(q => {
+    const quizDate = new Date(q.date)
+    return quizDate >= thirtyDaysAgo && quizDate <= now
+  })
+
+  // Step 2: Aggregate number of quizzes per date
+  const quizCountsByDate = {}
+
+  recentQuizzes.forEach(q => {
+    const dateStr = new Date(q.date).toISOString().split('T')[0] // e.g., '2025-07-25'
+    quizCountsByDate[dateStr] = (quizCountsByDate[dateStr] || 0) + 1
+  })
+
+  // Step 3: Sort and format the data
+  const sortedDates = Object.keys(quizCountsByDate).sort()
+  const dataPoints = sortedDates.map(date => quizCountsByDate[date])
+
+  // Optional: Fill in missing dates with 0
+  const allDates = []
+  for (let i = 0; i < 30; i++) {
+    const d = new Date(now)
+    d.setDate(now.getDate() - (29 - i))
+    const dateStr = d.toISOString().split('T')[0]
+    allDates.push(dateStr)
+  }
+
+  const filledData = allDates.map(date => quizCountsByDate[date] || 0)
+
+  // Destroy previous chart if it exists
+  if (scoreChart._instance) {
+    scoreChart._instance.destroy()
+  }
+
+console.log('📊 allDates:', allDates)
+console.log('📊 filledData:', filledData)
+
+if (!scoreChart.value) return
+new Chart(scoreChart.value, {
+  type: 'line',
+  data: {
+    labels: allDates,
+    datasets: [{
+      label: 'Quiz Attempts (last 30 days)',
+      data: filledData,
+      fill: true,
+      borderColor: 'rgba(0, 0, 0, 0.8)',
+      backgroundColor: 'rgba(0, 0, 0, 0.1)',
+      tension: 0.3,
+      pointBackgroundColor: '#000',
+      pointRadius: 3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      x: {
+        ticks: { maxTicksLimit: 7 }
+      },
+      y: {
+        beginAtZero: true,
+        title: { display: true, text: 'Attempts' }
+      }
+    },
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: ctx => `${ctx.raw} attempts`
+          }
+        }
+      }
+    }
+
+})
+}
+
+onMounted( async () => {
+  try{
+    await fetchUserProfile()
+  }
+  catch(error){
+  toast.error('Error loading loading data or charts', error)
+  }
+})
+
+watch(activeTab, async (newTab) => {
+  if (newTab === 'progress') {
+    await nextTick()
+    loadScoreChart()
+  }
+})
+
 </script>
 
 <style scoped>

@@ -1,5 +1,5 @@
 from flask_restful import Resource, reqparse
-from flask import jsonify, make_response, request
+from flask import jsonify, make_response, request, Blueprint
 from flask_security import auth_token_required, roles_required
 from datetime import datetime
 import json
@@ -8,7 +8,7 @@ import csv
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 
 from controller.models import db, User, Subject, Quiz, Score, Semester, Chapter, Question, SemesterEnum, QuestionTypeEnum
-from controller.extensions import redis_client, cache
+from controller.extensions import redis_client, cache, limiter
 # --- Optional: parser to fetch by email or id ---
 # profile_parser = reqparse.RequestParser()
 # profile_parser.add_argument('email', type=str, required=False)
@@ -190,12 +190,11 @@ class QuizStart(Resource):
         except Exception as error:
             db.session.rollback()
             return make_response(jsonify({f'message': f'Error starting quiz session: {error}'}), 500)
-
-    
     
 
 class getQuestion(Resource):
     @auth_token_required
+    @limiter.limit("1 per 5 minutes")
     def get(self, score_entry_id):
         if not score_entry_id:
             return make_response(jsonify({'message': 'Score entry ID is required'}), 400)

@@ -1,6 +1,6 @@
 import os
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, request
 from flask_restful import Resource, Api
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
@@ -9,12 +9,12 @@ from flask_security import Security, SQLAlchemyUserDatastore, utils as security_
 from flask_session import Session
 
 
+
 from controller.models import db, User, Role, UserRole , Semester
 from utils.config import config
 from controller.routes import register_routes
 from controller.extensions import security, user_datastore
-from controller.extensions import redis_client
-from controller.extensions import cache
+from controller.extensions import redis_client, cache, limiter, celery
 from controller.models.enums import SemesterEnum
 
 # --- Load environment variables ---
@@ -35,12 +35,25 @@ def CreateApp():
 
     Session(app)
     cache.init_app(app)   
+    limiter.init_app(app)
+    
+    celery.conf.update(app.config)
 
     api = Api(app)
     
     return app, api
 # --- Initialize Flask App and API ---
 app, api = CreateApp()
+
+@app.before_request
+def clear_non_session_cache():
+    if request.method in ['POST', 'PUT', 'DELETE']:
+        for key in redis_client.scan_iter():
+            key_str = key.decode('utf-8') if isinstance(key, bytes) else key
+            if not key_str.startswith('session:'):
+                redis_client.delete(key)
+
+
 CORS(app, resources={
         r"/api/*": {
             "origins": '*',
