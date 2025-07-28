@@ -153,7 +153,7 @@ const fetchQuestions = async () => {
 const handleDeleteQuestion = async (id) => {
   if (!confirm('Are you sure you want to delete this question?')) return
   try {
-    await axiosPrivate.delete(`/admin/questions`, { data: { id } })
+    await axiosPrivate.delete(`/admin/questions/${quizId}`, { data: { id } })
     questions.value = questions.value.filter((q) => q.id !== id)
     toast.success('Question deleted successfully.')
   } catch (err) {

@@ -28,3 +28,6 @@ class config:
     CACHE_TYPE = 'RedisCache'
     CACHE_REDIS_URL = os.getenv("REDIS_URL")
     CACHE_DEFAULT_TIMEOUT = 600  # 10 minutes
+
+    CELERY_BROKER_URL = os.getenv("REDIS_URL","redis://localhost:6379/0")
+    CELERY_RESULT_BACKEND = os.getenv("REDIS_URL","redis://localhost:6379/0")

@@ -8,10 +8,9 @@ from sqlalchemy import event
 from flask_security import Security, SQLAlchemyUserDatastore, utils as security_utils
 from flask_session import Session
 
-
-
 from controller.models import db, User, Role, UserRole , Semester
 from utils.config import config
+import utils.celeryconfig as celeryconfig
 from controller.routes import register_routes
 from controller.extensions import security, user_datastore
 from controller.extensions import redis_client, cache, limiter, celery
@@ -37,7 +36,7 @@ def CreateApp():
     cache.init_app(app)   
     limiter.init_app(app)
     
-    celery.conf.update(app.config)
+    celery.config_from_object(celeryconfig)
 
     api = Api(app)
     

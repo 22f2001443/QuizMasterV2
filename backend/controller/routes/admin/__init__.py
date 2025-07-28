@@ -589,7 +589,7 @@ class AdminQuestionManagement(Resource):
             return {"message": "Text, Question Type, Marks, and Answer are required"}, 400
 
         # Validate quiz existence
-        quiz = Quiz.query.get(quiz_id)
+        quiz = Quiz.query.get(quiz_id) # it does autometically converts it to a integer
         if not quiz:
             return {"message": "Invalid quiz ID"}, 400
 
@@ -598,7 +598,7 @@ class AdminQuestionManagement(Resource):
                 text=text,
                 question_type=QuestionTypeEnum[question_type],
                 marks=marks,
-                options=options if question_type == QuestionTypeEnum.MCQ else None,
+                options=options if question_type == "MCQ" else None,
                 correct_answer=answer,
                 quiz_id=quiz.id
             )
@@ -623,7 +623,7 @@ class AdminQuestionManagement(Resource):
     @roles_required('admin')
     def put(self, quiz_id):
         data = request.get_json()
-        question_id = data.get('id')
+        question_id = int(data.get('id'))
         if not question_id:
             return {"message": "Question ID is required for update"}, 400
 
@@ -631,7 +631,8 @@ class AdminQuestionManagement(Resource):
         if not question:
             return {"message": "Question not found"}, 404
 
-        if question.quiz_id != quiz_id:
+        if question.quiz_id != int(quiz_id):
+            
             return {"message": "Question does not belong to this quiz"}, 400
         
         quiz = Quiz.query.get(quiz_id)
@@ -641,8 +642,10 @@ class AdminQuestionManagement(Resource):
         # Update question fields
         question.text = data.get('text', question.text)
         question.question_type = QuestionTypeEnum[data.get('question_type', question.question_type.name)]
+        print(question.question_type)
         question.marks = data.get('marks', question.marks)
-        question.options = data.get('options' , question.options) if question.question_type == QuestionTypeEnum.MCQ else None
+        question.options = data.get('options' , question.options) 
+        # if question.question_type == "MCQ" else None
         question.correct_answer = data.get('answer', question.correct_answer)
 
         try:
@@ -659,6 +662,7 @@ class AdminQuestionManagement(Resource):
     @roles_required('admin')
     def delete(self, quiz_id):
         data = request.get_json()
+        #print(data)
         question_id = data.get('id')
 
         if not question_id:

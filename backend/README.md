@@ -5,7 +5,9 @@
 1. Create `.env` file using `.env.example`
 2. Activate virtual environment
 3. Install dependencies: `pip install -r req.txt`
-4. Run server: `python app.py` or `flask run --host=0.0.0.0 --port=8000`
+4. Terminal 1: Run Flask server: `python app.py` or `flask run --host=0.0.0.0 --port=8000`
+5. Terminal 2: Run Celery worker: `celery -A utils.celery.celery_worker.celery worker --loglevel=info`
+6. Terminal 3: Run Celery beat: `celery -A utils.celery.celery_worker.celery beat --loglevel=info`
 
 ## File Structure:
 
@@ -32,13 +34,9 @@
 |model.py             |  Python File           |Defining the DB Structure|
 |routes               |  Folder                |Containg files that handel endpoints| 
 
-### .\/controller/routes
+### /controller/routes
 | File/Folder Name    | Type                   | Purpose               |
 |:--------------------|:---------------------- |:----------------------|
 |routesRegister.py    |  Python File           |Handels the endpoints by calling reqired api(s) |
 
 
-Will update it later.
-# okay
-240125
-240516
