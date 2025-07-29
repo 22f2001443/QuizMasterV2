@@ -6,9 +6,10 @@
 2. Activate virtual environment
 3. Install dependencies: `pip install -r req.txt`
 4. Terminal 1: Run Flask server: `python app.py` or `flask run --host=0.0.0.0 --port=8000`
-5. Terminal 2: Run Celery worker: `celery -A utils.celery.celery_worker.celery worker --loglevel=info`
-6. Terminal 3: Run Celery beat: `celery -A utils.celery.celery_worker.celery beat --loglevel=info`
-
+5. Terminal 2: Run Redis server: `redis-server redis_config.conf` after `cd utils`
+6. Terminal 3: Run Celery worker: `celery -A utils.celery.celery_worker.celery worker --loglevel=info`
+7. Terminal 3: Run Celery beat: `celery -A utils.celery.celery_worker.celery beat --loglevel=info`
+python -m aiosmtpd -n -l localhost:1025
 ## File Structure:
 
 ### Root

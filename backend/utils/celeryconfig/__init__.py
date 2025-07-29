@@ -19,11 +19,11 @@ enable_utc = True
 # Periodic Task Schedules (Used by Celery Beat)
 beat_schedule = {
     'send-daily-quiz-reminder': {
-        'task': 'tasks.email_tasks.send_daily_quiz_reminders',
-        'schedule': crontab(hour=9, minute=0),  # Every day at 9:00 AM
+        'task': 'tasks.send_emails.send_daily_quiz_reminders',
+        'schedule': crontab(hour=21, minute=55),  # Every day at 9:00 AM
     },
     'send-monthly-performance-report': {
-        'task': 'tasks.report_tasks.send_monthly_report_to_users',
+        'task': 'tasks.send_emails.send_monthly_report_to_users',
         'schedule': crontab(day_of_month='1', hour=10, minute=0),  # 1st of every month at 10:00 AM
     }
 }

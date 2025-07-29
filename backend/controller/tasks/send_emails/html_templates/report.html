@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Monthly Performance Report</title>
+</head>
+<body>
+    <h2>Hello {{ user.name }},</h2>
+
+    <p>This is your performance report for the month of {{ month }}.</p>
+
+    <h3>Quiz Summary:</h3>
+    <table border="1" cellpadding="5" cellspacing="0">
+        <thead>
+            <tr>
+                <th>Quiz Title</th>
+                <th>Score (%)</th>
+                <th>Date Taken</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for quiz in quizzes %}
+            <tr>
+                <td>{{ quiz.title }}</td>
+                <td>{{ score.percentage }}</td>
+                <td>{{ quiz.date_taken }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <h3>Overall Performance:</h3>
+    <p>Average Score (till date): {{ average_score }}%</p>
+    <p>Total Quizzes Attempted (till date): {{ total_quizzes }}</p>
+
+    <p>Best regards,<br><b>Samyabrata Roy </b><br>Creater, QuizPilot</p>
+</body>
+</html>

@@ -35,6 +35,8 @@ def CreateApp():
     Session(app)
     cache.init_app(app)   
     limiter.init_app(app)
+
+    db.init_app(app)
     
     celery.config_from_object(celeryconfig)
 
@@ -77,7 +79,7 @@ def enable_foreign_keys():
 # --- Database Initialization ---
 def CreateDatabase(app, db):
     with app.app_context():
-      db.init_app(app)
+     # db.init_app(app)
       enable_foreign_keys()
       db.create_all()
 

@@ -1,6 +1,8 @@
 <html>
   <body>
+    <h3>Daily reminder from "Quiz Pilot"</h3>
     <p>Hello {{ user.name }},</p>
+    <div>
     <p>You have the following pending quizzes:</p>
     <ul>
       {% for quiz in quizzes %}
@@ -8,5 +10,9 @@
       {% endfor %}
     </ul>
     <p>Visit your dashboard to complete them!</p>
+    </div>
+    <p> Warm Regards,</p>
+    <b>Samyabrata Roy</b>
+    <p>Creater, Quiz Pilot</p>
   </body>
 </html>

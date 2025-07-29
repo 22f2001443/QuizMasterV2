@@ -10,7 +10,7 @@ SMTP_PORT = os.getenv("SMTP_PORT" ,1025)  # Change to 587 for real SMTP servers
 FROM_EMAIL = 'admin@quizpilot.com'
 
 # Jinja environment setup
-template_dir = os.path.join(os.path.dirname(__file__), '../../tasks/send_emails/html_templates')
+template_dir = os.path.join(os.path.dirname(__file__), '../../controller/tasks/send_emails/html_templates')
 env = Environment(loader=FileSystemLoader(template_dir))
 
 
@@ -40,6 +40,8 @@ def send_email(to, subject, template_name, context):
     # Send the email
     try:
         with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
+            server.connect(SMTP_HOST, SMTP_PORT)  # <-- Explicit connection
+            server.ehlo()
             server.send_message(msg)
             print(f"Email sent to {to}")
     except Exception as e:

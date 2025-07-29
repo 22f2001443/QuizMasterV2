@@ -1,14 +1,20 @@
+from controller.extensions import celery
 from utils.celeryconfig.mailer import send_email
-from controller.models import User, Quiz, Score
+from controller.models import db, User, Quiz, Score
 
 def getPendingQuizzes(user):
     user = user
-    pending_quizzes = [q for sub in user.semester.subjects for chap in sub.chapters for quiz in chap.quizzes for q in quiz.is_active and quiz.questions] if user.semester else []
-    return pending_quizzes
+    quizzes = []
+    for subject in user.semester.subjects:
+        for chapter in subject.chapters:
+            for quiz in chapter.quizzes:
+                if quiz.is_active and quiz.questions:
+                    quizzes.append(quiz)
+    return quizzes
 
-@celery.task
+@celery.task(name='tasks.send_emails.send_daily_quiz_reminders')
 def send_daily_quiz_reminders():
-    users = User.query.filter_by(active=True).all()
+    users = User.query.filter(User.active ==True , User.email != "admin@example.com").all()
     for user in users:
         pending_quizzes = getPendingQuizzes(user)
         if pending_quizzes:
