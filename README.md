@@ -15,8 +15,9 @@ For Backend:
 5) Jinja2 : Used for rendering HTML templates.
 
 For Frontend:
-1) Vue : For creating UI
-2) Pinia : For State management
+1) Vue    : For creating UI
+2) Pinia  : For State management
+3) ChartJS: For rendering charts
 
 
 ### File Structure:
