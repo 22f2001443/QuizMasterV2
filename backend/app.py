@@ -29,7 +29,7 @@ def seed_semesters():
 
 # --- Setup ---
 def CreateApp():
-    app = Flask(__name__)  # No template_folder needed anymore
+    app = Flask(__name__)  # No template_folder needed anymore as I'll not be rendering html from backend
     app.config.from_object(config)
 
     Session(app)
