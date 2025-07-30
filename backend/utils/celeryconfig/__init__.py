@@ -20,7 +20,7 @@ enable_utc = True
 beat_schedule = {
     'send-daily-quiz-reminder': {
         'task': 'tasks.send_emails.send_daily_quiz_reminders',
-        'schedule': crontab(hour=21, minute=55),  # Every day at 9:00 AM
+        'schedule': crontab(hour=23, minute=55),  # Every day at 9:00 AM
     },
     'send-monthly-performance-report': {
         'task': 'tasks.send_emails.send_monthly_report_to_users',

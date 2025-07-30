@@ -313,7 +313,40 @@ class AdminChapterManagement(Resource):
     @auth_token_required
     @roles_required('admin')
     def put(self, subject_id):
-        return
+        data = request.get_json()
+
+        chapter_id = data.get('id')
+        title = data.get('title')
+        description = data.get('description')
+
+        if not chapter_id:
+            return {"message": "Chapter ID is required"}, 400
+
+        if not title:
+            return {"message": "Title is required"}, 400
+
+        chapter = Chapter.query.get(chapter_id)
+        if not chapter:
+            return {"message": "Chapter not found"}, 404
+
+        if chapter.subject_id != int(subject_id):
+            return {"message": "Chapter does not belong to the specified subject"}, 400
+
+        try:
+            chapter.name = title
+            # Optionally update description if field exists in your model
+            # chapter.description = description if description is not None else chapter.description
+
+            db.session.commit()
+
+            return make_response(jsonify({
+                "message": "Chapter updated successfully",
+                "id": chapter.id
+            }), 200)
+
+        except SQLAlchemyError as e:
+            db.session.rollback()
+            return {"message": "Database error", "error": str(e)}, 500
 
     # DELETE: Remove a chapter by ID
     @auth_token_required
