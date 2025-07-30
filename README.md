@@ -16,3 +16,11 @@ For Backend:
 
 For Frontend:
 1) Vue : For creating UI
+2) Pinia : For State management
+
+
+### File Structure:
+```
+QUIZMASTERV2/
+ ├──backend/   <-- Please find README.md file inside this folder to run the backend of the app 
+ └──frontend/  <-- Please find README.md file inside this folder to run the frontend of the app
