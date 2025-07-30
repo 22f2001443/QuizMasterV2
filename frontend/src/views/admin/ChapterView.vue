@@ -3,17 +3,13 @@
     <!-- Header -->
     <div class="d-flex justify-content-between align-items-center mb-3">
       <div class="d-flex flex-column gap-2">
-  <button class="btn btn-outline-dark btn-sm w-fit" @click="goBack">
-    <i class="bi bi-arrow-left"></i> Back to Subjects
-  </button>
-  <h2 class="fw-bold text-dark mb-0">Chapters</h2>
-</div>
-      <button
-        class="btn btn-light rounded-pill px-3 py-1 fw-medium text-dark shadow-sm"
-        @click="handleAddChapter"
-        data-bs-toggle="modal"
-        data-bs-target="#addChapterModal"
-      >
+        <button class="btn btn-outline-dark btn-sm w-fit" @click="goBack">
+          <i class="bi bi-arrow-left"></i> Back to Subjects
+        </button>
+        <h2 class="fw-bold text-dark mb-0">Chapters</h2>
+      </div>
+      <button class="btn btn-light rounded-pill px-3 py-1 fw-medium text-dark shadow-sm" @click="handleAddChapter"
+        data-bs-toggle="modal" data-bs-target="#addChapterModal">
         Add Chapter
       </button>
     </div>
@@ -25,13 +21,8 @@
         <span class="input-group-text bg-transparent border-0">
           <i class="bi bi-search text-muted"></i>
         </span>
-        <input
-          v-model="search"
-          type="text"
-          class="form-control bg-transparent border-0"
-          placeholder="Search chapters"
-          style="padding: 0.75rem 1rem; font-size: 1rem;"
-        />
+        <input v-model="search" type="text" class="form-control bg-transparent border-0" placeholder="Search chapters"
+          style="padding: 0.75rem 1rem; font-size: 1rem;" />
       </div>
     </div>
 
@@ -60,13 +51,11 @@
             <td>{{ chapter.quizzes_count || 0 }}</td>
             <td>
               <div class="d-flex gap-2">
-                <button class="btn btn-sm btn-outline-primary">
+                <button class="btn btn-sm btn-outline-primary" @click="handleEditChapter(chapter)"
+                  data-bs-toggle="modal" data-bs-target="#addChapterModal">
                   <i class="bi bi-pencil"></i>
                 </button>
-                <button 
-                class="btn btn-sm btn-outline-danger"
-                @click="handleDeleteChapter(chapter.id)"
-                >
+                <button class="btn btn-sm btn-outline-danger" @click="handleDeleteChapter(chapter.id)">
                   <i class="bi bi-trash"></i>
                 </button>
               </div>
@@ -77,25 +66,21 @@
     </div>
 
     <!-- Modal -->
-<div class="modal fade" id="addChapterModal" tabindex="-1" aria-labelledby="addChapterModalLabel" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">{{ formMode === 'edit' ? 'Edit Chapter' : 'Add Chapter' }}</h5>
-        <button ref="modalCloseBtn" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-      <div class="modal-body">
-        <ChapterModalView
-          :mode="formMode"
-          :chapter="selectedChapter"
-          :subjectId="subjectId"
-          :modalCloseBtn="modalCloseBtn"
-          @chapter-added="fetchChapters"
-        />
+    <div class="modal fade" id="addChapterModal" tabindex="-1" aria-labelledby="addChapterModalLabel"
+      aria-hidden="true">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">{{ formMode === 'edit' ? 'Edit Chapter' : 'Add Chapter' }}</h5>
+            <button ref="modalCloseBtn" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+          <div class="modal-body">
+            <ChapterModalView :mode="chapterFormMode" :chapter="selectedChapter" :subjectId="subjectId"
+              :modalCloseBtn="modalCloseBtn" @chapter-added="fetchChapters" />
+          </div>
+        </div>
       </div>
     </div>
-  </div>
-</div>
   </div>
 </template>
 
@@ -120,6 +105,8 @@ const subjectName = ref('')
 const formMode = ref('add')
 const selectedChapter = ref(null)
 const modalCloseBtn = ref(null)
+const chapterFormMode = ref('add')
+
 
 const fetchChapters = async () => {
   try {
@@ -133,6 +120,11 @@ const fetchChapters = async () => {
   } finally {
     loading.value = false
   }
+}
+
+const handleEditChapter = (chapter) => {
+  chapterFormMode.value = 'edit'
+  selectedChapter.value = { ...chapter }
 }
 
 const handleDeleteChapter = async (id) => {
@@ -156,7 +148,7 @@ const handleDeleteChapter = async (id) => {
 }
 
 const handleAddChapter = () => {
-  formMode.value = 'add'
+  chapterFormMode.value = 'add'
   selectedChapter.value = null
 }
 
