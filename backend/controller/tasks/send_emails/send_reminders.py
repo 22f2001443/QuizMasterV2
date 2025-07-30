@@ -4,11 +4,12 @@ from controller.models import db, User, Quiz, Score
 
 def getPendingQuizzes(user):
     user = user
+    user_score_quiz_ids = {score.quiz_id for score in Score.query.filter_by(user_id=user.id).all()}
     quizzes = []
     for subject in user.semester.subjects:
         for chapter in subject.chapters:
             for quiz in chapter.quizzes:
-                if quiz.is_active and quiz.questions:
+                if quiz.is_active and quiz.questions and quiz.id not in user_score_quiz_ids :
                     quizzes.append(quiz)
     return quizzes
 
